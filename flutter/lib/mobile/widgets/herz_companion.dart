@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/models/input_model.dart';
+import 'package:flutter_hbb/models/model.dart';
 
 /// HerzCompanionToolbar:
 /// Clean icon-only bar directly stacked above RustDesk bottom bar.
