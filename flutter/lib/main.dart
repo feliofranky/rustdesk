@@ -175,6 +175,15 @@ void runMainApp(bool startService) async {
 
 void runMobileApp() async {
   await initEnv(kAppTypeMain);
+  // HerzView: ensure Amikom server is hardcoded by default
+  try {
+    final currentServer = await bind.mainGetOption(key: 'custom-rendezvous-server');
+    if (currentServer.isEmpty) {
+      await bind.mainSetOption(key: 'custom-rendezvous-server', value: 'remote.amikom.ac.id');
+      await bind.mainSetOption(key: 'relay-server', value: 'remote.amikom.ac.id');
+      await bind.mainSetOption(key: 'key', value: 'LhspHcjv1aP7R4tJIqdo2aA+1YRxUFPYKspPV9qKgT4=');
+    }
+  } catch (_) {}
   checkUpdate();
   if (isAndroid) androidChannelInit();
   if (isAndroid) platformFFI.syncAndroidServiceAppDirConfigPath();
