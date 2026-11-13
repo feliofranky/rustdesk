@@ -4224,13 +4224,8 @@ List<String> getPrinterNames() {
   }
 }
 
-String _appName = '';
-String get appName {
-  if (_appName.isEmpty) {
-    _appName = bind.mainGetAppNameSync();
-  }
-  return _appName;
-}
+String _appName = 'HerzView';
+String get appName => _appName;
 
 String getConnectionText(bool secure, bool direct, String streamType) {
   String connectionText;
