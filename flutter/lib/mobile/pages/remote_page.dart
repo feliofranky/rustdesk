@@ -572,15 +572,18 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
                                 });
                               }
                               return Stack(
+                                fit: StackFit.expand,
                                 children: [
-                                  Container(
-                                    color: MyTheme.canvasColor,
-                                    child: inputModel.isPhysicalMouse.value
-                                        ? getBodyForMobile()
-                                        : RawTouchGestureDetectorRegion(
-                                            child: getBodyForMobile(),
-                                            ffi: gFFI,
-                                          ),
+                                  Positioned.fill(
+                                    child: Container(
+                                      color: MyTheme.canvasColor,
+                                      child: inputModel.isPhysicalMouse.value
+                                          ? getBodyForMobile()
+                                          : RawTouchGestureDetectorRegion(
+                                              child: getBodyForMobile(),
+                                              ffi: gFFI,
+                                            ),
+                                    ),
                                   ),
                                   HerzScrollSlider(
                                     sessionId: sessionId,
