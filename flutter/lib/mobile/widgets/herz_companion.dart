@@ -4,12 +4,13 @@ import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/models/input_model.dart';
 import 'package:flutter_hbb/models/model.dart';
+import 'package:flutter_hbb/models/platform_model.dart';
 
 /// HerzCompanionToolbar:
 /// Clean icon-only bar directly stacked above RustDesk bottom bar.
 /// 4 actions: Paste, Snip, Right-Click, Zoom Toggle.
 class HerzCompanionToolbar extends StatelessWidget {
-  final String sessionId;
+  final SessionID sessionId;
   final FFI gFFI;
 
   const HerzCompanionToolbar({
@@ -124,7 +125,7 @@ class HerzCompanionToolbar extends StatelessWidget {
 /// - In portrait: Occupies the lower ~65-70% (natural thumb reach zone).
 /// - In landscape: Occupies full vertical height.
 class HerzScrollSlider extends StatefulWidget {
-  final String sessionId;
+  final SessionID sessionId;
   final FFI gFFI;
 
   const HerzScrollSlider({
