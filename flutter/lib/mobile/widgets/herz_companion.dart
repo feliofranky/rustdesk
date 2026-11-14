@@ -157,16 +157,19 @@ class HerzScrollSlider extends StatefulWidget {
 }
 
 class _HerzScrollSliderState extends State<HerzScrollSlider> {
-  static int _speedIndex = 0; // Default: 0.3x (Slow / Reading mode)
-  static const List<String> _speedLabels = ['0.3x', '1.0x', '2.0x'];
+  static int _speedIndex = 0; // Default: 0.1x (Super Pelan / Mode Baca)
+  static const List<String> _speedLabels = ['0.1x', '0.3x', '1.0x', '2.0x'];
   static const List<String> _speedDescs = [
-    '0.3x (Pelan / Baca Dokumen)',
+    '0.1x (Super Pelan / Mode Baca)',
+    '0.3x (Pelan)',
     '1.0x (Normal)',
     '2.0x (Cepat / Turbo)',
   ];
 
   double _thumbPositionRatio = 0.5; // 0.0 top, 1.0 bottom
   double _dragAccumulator = 0.0;
+  double _lastPointerY = 0.0;
+  bool _isDragging = false;
 
   void _cycleSpeed() {
     setState(() {
@@ -175,45 +178,64 @@ class _HerzScrollSliderState extends State<HerzScrollSlider> {
     showToast('Kecepatan Scroll: ${_speedDescs[_speedIndex]}');
   }
 
-  void _handleDragStart(DragStartDetails details) {
+  void _onPointerDown(PointerDownEvent event) {
+    _lastPointerY = event.position.dy;
     _dragAccumulator = 0.0;
+    _isDragging = true;
   }
 
-  void _handleDragUpdate(DragUpdateDetails details, double trackHeight) {
-    final delta = details.delta.dy;
+  void _onPointerMove(PointerMoveEvent event, double trackHeight) {
+    if (!_isDragging) return;
+    final deltaY = event.position.dy - _lastPointerY;
+    _lastPointerY = event.position.dy;
 
-    final double multiplier;
+    // Physical pixel distance required per 1 wheel notch
+    final double pixelsPerWheelTick;
     switch (_speedIndex) {
       case 0:
-        multiplier = 0.6; // 0.3x Pelan / Mode Baca
+        pixelsPerWheelTick = 42.0; // 0.1x: ~42px thumb drag = 1 gentle wheel tick (3 lines of text)
         break;
       case 1:
-        multiplier = 1.6; // 1.0x Normal
+        pixelsPerWheelTick = 22.0; // 0.3x: ~22px per tick
         break;
       case 2:
+        pixelsPerWheelTick = 10.0; // 1.0x: ~10px per tick
+        break;
+      case 3:
       default:
-        multiplier = 3.5; // 2.0x Cepat
+        pixelsPerWheelTick = 4.0;  // 2.0x: ~4px per tick
         break;
     }
 
-    _dragAccumulator += delta * multiplier;
-    final toSend = _dragAccumulator.round();
-    if (toSend != 0) {
-      _dragAccumulator -= toSend;
-      widget.gFFI.inputModel.scroll(-toSend);
+    _dragAccumulator += deltaY;
+
+    // Dispatch scroll events per physical threshold
+    while (_dragAccumulator.abs() >= pixelsPerWheelTick) {
+      if (_dragAccumulator > 0) {
+        // Dragging DOWN -> scroll down (negative y in RustDesk)
+        widget.gFFI.inputModel.scroll(-1);
+        _dragAccumulator -= pixelsPerWheelTick;
+      } else {
+        // Dragging UP -> scroll up (positive y in RustDesk)
+        widget.gFFI.inputModel.scroll(1);
+        _dragAccumulator += pixelsPerWheelTick;
+      }
     }
 
-    setState(() {
-      _thumbPositionRatio =
-          (_thumbPositionRatio + (delta / trackHeight)).clamp(0.0, 1.0);
-    });
+    if (trackHeight > 0) {
+      setState(() {
+        _thumbPositionRatio =
+            (_thumbPositionRatio + (deltaY / trackHeight)).clamp(0.0, 1.0);
+      });
+    }
   }
 
-  void _handleDragEnd(DragEndDetails details) {
+  void _onPointerUpOrCancel() {
+    _isDragging = false;
     _dragAccumulator = 0.0;
-    // Smoothly snap thumb back to center so user can continue scrolling freely
+    // Smoothly snap thumb back to center so user always has full stroke headroom
     Timer(const Duration(milliseconds: 300), () {
-      if (mounted) {
+      if (mounted && !_isDragging) {
         setState(() {
           _thumbPositionRatio = 0.5;
         });
@@ -226,17 +248,19 @@ class _HerzScrollSliderState extends State<HerzScrollSlider> {
     final isPortrait =
         MediaQuery.of(context).orientation == Orientation.portrait;
 
-    // Shifted left: right = 20, width = 64 (center of track is at right = 52, exactly on the green line)
-    // The entire 64px width acts as an opaque hit target so thumb swipes in the red zone never miss!
+    // Positioned right at right edge with width: 44px
+    // Track sits centered at 22px from right edge (matching green line)
+    // Left edge stops at 44px from right edge (does not intrude into document)
     return Positioned(
-      right: 20,
+      right: 0,
       top: isPortrait ? MediaQuery.of(context).size.height * 0.30 : 16,
       bottom: isPortrait ? 12 : 16,
-      width: 64,
+      width: 44,
       child: Column(
         children: [
           // Borderless Speed button at the top tip of scroll slider
           GestureDetector(
+            behavior: HitTestBehavior.opaque,
             onTap: _cycleSpeed,
             child: Container(
               width: 36,
@@ -265,7 +289,7 @@ class _HerzScrollSliderState extends State<HerzScrollSlider> {
             ),
           ),
           const SizedBox(height: 6),
-          // Vertical Slider Track with wide touch target
+          // Vertical Slider Track with direct Listener (unswallowable by PC canvas)
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -277,42 +301,50 @@ class _HerzScrollSliderState extends State<HerzScrollSlider> {
 
                 return GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onVerticalDragStart: _handleDragStart,
-                  onVerticalDragUpdate: (d) =>
-                      _handleDragUpdate(d, trackHeight),
-                  onVerticalDragEnd: _handleDragEnd,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Blue Track Line (centered in the 64px touch zone)
-                      Container(
-                        width: 5,
-                        height: trackHeight,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF2563EB), // Blue 600
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                      ),
-                      // White Circular Knob
-                      Positioned(
-                        top: topOffset,
-                        child: Container(
-                          width: knobSize,
-                          height: knobSize,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.4),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
+                  onTap: () {}, // Swallows taps so background canvas isn't clicked
+                  child: Listener(
+                    behavior: HitTestBehavior.opaque,
+                    onPointerDown: _onPointerDown,
+                    onPointerMove: (e) => _onPointerMove(e, trackHeight),
+                    onPointerUp: (_) => _onPointerUpOrCancel(),
+                    onPointerCancel: (_) => _onPointerUpOrCancel(),
+                    child: Container(
+                      width: 44,
+                      color: Colors.transparent,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          // Blue Track Line (centered in the 44px touch strip)
+                          Container(
+                            width: 5,
+                            height: trackHeight,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2563EB), // Blue 600
+                              borderRadius: BorderRadius.circular(3),
+                            ),
                           ),
-                        ),
+                          // White Circular Knob
+                          Positioned(
+                            top: topOffset,
+                            child: Container(
+                              width: knobSize,
+                              height: knobSize,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.4),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 );
               },
