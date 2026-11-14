@@ -8,9 +8,13 @@ import 'package:flutter_hbb/models/model.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
 
 /// HerzCompanionToolbar:
-/// Clean icon-only bar directly stacked above RustDesk bottom bar.
-/// 4 actions: Paste, Snip, Right-Click, Zoom Toggle.
-class HerzCompanionToolbar extends StatelessWidget {
+/// Hybrid orientation-adaptive companion toolbar.
+/// - In Portrait: Two permanent rows (Row 1: Undo/Redo Word group, D-Pad trigger, Save, Find, Lock PC;
+///   Row 2: Paste, Voice Mic, Snip, Right Click, Fit Screen Zoom).
+/// - In Landscape: Single slim row with all 10 tools, zero screen obstruction.
+/// - D-Pad trigger toggles a floating mini-bubble directly above for precise cursor navigation.
+/// - Flat solid theme: Slate-800 (#1E293B), Slate-900 (#0F172A), Accent Blue (#2563EB).
+class HerzCompanionToolbar extends StatefulWidget {
   final SessionID sessionId;
   final FFI gFFI;
 
@@ -20,14 +24,98 @@ class HerzCompanionToolbar extends StatelessWidget {
     required this.gFFI,
   }) : super(key: key);
 
+  @override
+  State<HerzCompanionToolbar> createState() => _HerzCompanionToolbarState();
+}
+
+class _HerzCompanionToolbarState extends State<HerzCompanionToolbar> {
+  bool _showDpad = false;
+
+  void _onUndo() {
+    bind.sessionInputKey(
+      sessionId: widget.sessionId,
+      name: 'z',
+      down: false,
+      press: true,
+      ctrl: true,
+      alt: false,
+      shift: false,
+      command: false,
+    );
+  }
+
+  void _onRedo() {
+    bind.sessionInputKey(
+      sessionId: widget.sessionId,
+      name: 'y',
+      down: false,
+      press: true,
+      ctrl: true,
+      alt: false,
+      shift: false,
+      command: false,
+    );
+  }
+
+  void _onSave() {
+    bind.sessionInputKey(
+      sessionId: widget.sessionId,
+      name: 's',
+      down: false,
+      press: true,
+      ctrl: true,
+      alt: false,
+      shift: false,
+      command: false,
+    );
+  }
+
+  void _onFind() {
+    bind.sessionInputKey(
+      sessionId: widget.sessionId,
+      name: 'f',
+      down: false,
+      press: true,
+      ctrl: true,
+      alt: false,
+      shift: false,
+      command: false,
+    );
+  }
+
+  void _onLock() {
+    bind.sessionInputKey(
+      sessionId: widget.sessionId,
+      name: 'LOCK_SCREEN',
+      down: false,
+      press: true,
+      ctrl: false,
+      alt: false,
+      shift: false,
+      command: false,
+    );
+  }
+
+  void _sendKey(String keyName) {
+    bind.sessionInputKey(
+      sessionId: widget.sessionId,
+      name: keyName,
+      down: false,
+      press: true,
+      ctrl: false,
+      alt: false,
+      shift: false,
+      command: false,
+    );
+  }
+
   void _onPaste() async {
     // 1. Check if there is text in Android phone clipboard
     try {
       final clipData = await Clipboard.getData(Clipboard.kTextPlain);
       final phoneText = clipData?.text;
       if (phoneText != null && phoneText.isNotEmpty) {
-        bind.sessionInputString(sessionId: sessionId, value: phoneText);
-        // Silent paste without toast
+        bind.sessionInputString(sessionId: widget.sessionId, value: phoneText);
         return;
       }
     } catch (e) {
@@ -36,7 +124,7 @@ class HerzCompanionToolbar extends StatelessWidget {
 
     // 2. Fallback: Send Ctrl+V to remote PC session
     bind.sessionInputKey(
-      sessionId: sessionId,
+      sessionId: widget.sessionId,
       name: 'v',
       down: false,
       press: true,
@@ -45,12 +133,109 @@ class HerzCompanionToolbar extends StatelessWidget {
       shift: false,
       command: false,
     );
-    // Silent paste without toast
+  }
+
+  void _onVoiceMic() {
+    final textController = TextEditingController();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF0F172A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 12,
+            left: 16,
+            right: 16,
+            top: 14,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.mic_rounded, color: Color(0xFF2563EB), size: 20),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Dikte Suara / Teks ke PC',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, color: Colors.white60, size: 20),
+                    onPressed: () => Navigator.pop(ctx),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: textController,
+                autofocus: true,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: 'Tap icon mic di keyboard HP lalu bicara...',
+                  hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
+                  filled: true,
+                  fillColor: const Color(0xFF1E293B),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFF334155)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFF334155)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFF2563EB)),
+                  ),
+                ),
+                onSubmitted: (value) {
+                  if (value.isNotEmpty) {
+                    bind.sessionInputString(sessionId: widget.sessionId, value: value);
+                  }
+                  Navigator.pop(ctx);
+                },
+              ),
+              const SizedBox(height: 10),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.send_rounded, size: 16),
+                label: const Text('Kirim ke PC'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2563EB),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                onPressed: () {
+                  final text = textController.text;
+                  if (text.isNotEmpty) {
+                    bind.sessionInputString(sessionId: widget.sessionId, value: text);
+                  }
+                  Navigator.pop(ctx);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   void _onSnip() {
     bind.sessionInputKey(
-      sessionId: sessionId,
+      sessionId: widget.sessionId,
       name: 'S',
       down: false,
       press: true,
@@ -62,31 +247,168 @@ class HerzCompanionToolbar extends StatelessWidget {
   }
 
   void _onRightClick() {
-    gFFI.inputModel.sendMouse('down', MouseButtons.right);
+    widget.gFFI.inputModel.sendMouse('down', MouseButtons.right);
     Future.delayed(const Duration(milliseconds: 60), () {
-      gFFI.inputModel.sendMouse('up', MouseButtons.right);
+      widget.gFFI.inputModel.sendMouse('up', MouseButtons.right);
     });
   }
 
   void _onZoom() async {
-    final cur = await bind.sessionGetViewStyle(sessionId: sessionId) ?? '';
+    final cur = await bind.sessionGetViewStyle(sessionId: widget.sessionId) ?? '';
     final next = (cur == kRemoteViewStyleOriginal)
         ? kRemoteViewStyleAdaptive
         : kRemoteViewStyleOriginal;
-    await bind.sessionSetViewStyle(sessionId: sessionId, value: next);
-    gFFI.canvasModel.updateViewStyle();
+    await bind.sessionSetViewStyle(sessionId: widget.sessionId, value: next);
+    widget.gFFI.canvasModel.updateViewStyle();
   }
 
   Widget _buildIconButton({
     required IconData icon,
     required VoidCallback onTap,
     String? tooltip,
+    bool isActive = false,
   }) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: isActive ? const Color(0xFF2563EB) : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Icon(
+          icon,
+          size: 20,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUndoRedoGroup() {
+    return Container(
+      height: 32,
+      decoration: BoxDecoration(
+        color: const Color(0xFF334155),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          InkWell(
+            onTap: _onUndo,
+            borderRadius: const BorderRadius.horizontal(left: Radius.circular(6)),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: Icon(
+                Icons.undo_rounded,
+                size: 18,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          Container(
+            height: 16,
+            width: 1,
+            color: const Color(0xFF475569),
+          ),
+          InkWell(
+            onTap: _onRedo,
+            borderRadius: const BorderRadius.horizontal(right: Radius.circular(6)),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: Icon(
+                Icons.redo_rounded,
+                size: 18,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDpadTrigger() {
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _showDpad = !_showDpad;
+        });
+      },
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: _showDpad ? const Color(0xFF2563EB) : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: const Icon(
+          Icons.control_camera_rounded,
+          size: 20,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDpadBubble() {
+    return Container(
+      margin: const EdgeInsets.only(top: 6, bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF334155), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.5),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildDpadItem(Icons.arrow_left_rounded, 'VK_LEFT'),
+          _buildDpadItem(Icons.arrow_drop_up_rounded, 'VK_UP'),
+          _buildDpadItem(Icons.arrow_drop_down_rounded, 'VK_DOWN'),
+          _buildDpadItem(Icons.arrow_right_rounded, 'VK_RIGHT'),
+          Container(
+            height: 20,
+            width: 1,
+            color: const Color(0xFF334155),
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+          ),
+          _buildDpadItem(Icons.keyboard_return_rounded, 'VK_RETURN'),
+          const SizedBox(width: 4),
+          InkWell(
+            onTap: () => setState(() => _showDpad = false),
+            borderRadius: BorderRadius.circular(6),
+            child: const Padding(
+              padding: EdgeInsets.all(4),
+              child: Icon(Icons.close_rounded, size: 16, color: Colors.white54),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDpadItem(IconData icon, String keyName) {
+    return InkWell(
+      onTap: () => _sendKey(keyName),
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E293B),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        margin: const EdgeInsets.symmetric(horizontal: 2),
         child: Icon(
           icon,
           size: 20,
@@ -98,38 +420,79 @@ class HerzCompanionToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isPortrait =
+        MediaQuery.of(context).orientation == Orientation.portrait;
+
     return Container(
-      height: 40,
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B), // slate-800
+        color: const Color(0xFF1E293B),
         border: Border(
           top: BorderSide(color: Colors.white.withOpacity(0.08), width: 1),
           bottom: BorderSide(color: Colors.white.withOpacity(0.08), width: 1),
         ),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          _buildIconButton(
-            icon: Icons.paste_rounded,
-            onTap: _onPaste,
-            tooltip: 'Paste (Ctrl+V / Teks HP)',
-          ),
-          _buildIconButton(
-            icon: Icons.content_cut_rounded,
-            onTap: _onSnip,
-            tooltip: 'Snip (Win+Shift+S)',
-          ),
-          _buildIconButton(
-            icon: Icons.mouse_rounded,
-            onTap: _onRightClick,
-            tooltip: 'Right Click',
-          ),
-          _buildIconButton(
-            icon: Icons.zoom_in_rounded,
-            onTap: _onZoom,
-            tooltip: 'Toggle Zoom',
-          ),
+          if (_showDpad) _buildDpadBubble(),
+          if (isPortrait) ...[
+            // Row 1: Undo/Redo, D-Pad, Save, Find, Lock PC
+            Container(
+              height: 38,
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: Colors.white.withOpacity(0.06),
+                    width: 1,
+                  ),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildUndoRedoGroup(),
+                  _buildDpadTrigger(),
+                  _buildIconButton(icon: Icons.save_rounded, onTap: _onSave),
+                  _buildIconButton(icon: Icons.search_rounded, onTap: _onFind),
+                  _buildIconButton(icon: Icons.lock_outline_rounded, onTap: _onLock),
+                ],
+              ),
+            ),
+            // Row 2: Paste, Voice Mic, Snip, Right Click, Fit Screen
+            SizedBox(
+              height: 38,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildIconButton(icon: Icons.paste_rounded, onTap: _onPaste),
+                  _buildIconButton(icon: Icons.mic_none_rounded, onTap: _onVoiceMic),
+                  _buildIconButton(icon: Icons.content_cut_rounded, onTap: _onSnip),
+                  _buildIconButton(icon: Icons.mouse_rounded, onTap: _onRightClick),
+                  _buildIconButton(icon: Icons.fit_screen_rounded, onTap: _onZoom),
+                ],
+              ),
+            ),
+          ] else ...[
+            // Landscape: Single slim row with all 10 tools
+            SizedBox(
+              height: 38,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildUndoRedoGroup(),
+                  _buildDpadTrigger(),
+                  _buildIconButton(icon: Icons.save_rounded, onTap: _onSave),
+                  _buildIconButton(icon: Icons.search_rounded, onTap: _onFind),
+                  _buildIconButton(icon: Icons.lock_outline_rounded, onTap: _onLock),
+                  _buildIconButton(icon: Icons.paste_rounded, onTap: _onPaste),
+                  _buildIconButton(icon: Icons.mic_none_rounded, onTap: _onVoiceMic),
+                  _buildIconButton(icon: Icons.content_cut_rounded, onTap: _onSnip),
+                  _buildIconButton(icon: Icons.mouse_rounded, onTap: _onRightClick),
+                  _buildIconButton(icon: Icons.fit_screen_rounded, onTap: _onZoom),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
