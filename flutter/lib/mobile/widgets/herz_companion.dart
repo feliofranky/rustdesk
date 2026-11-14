@@ -164,145 +164,223 @@ class _HerzCompanionToolbarState extends State<HerzCompanionToolbar> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      enableDrag: true,
       backgroundColor: const Color(0xFF0F172A),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (ctx) {
+        void hideKeyboard() {
+          focusNode.unfocus();
+          FocusScope.of(ctx).unfocus();
+          SystemChannels.textInput.invokeMethod('TextInput.hide');
+        }
+
         return StatefulBuilder(
           builder: (context, setModalState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(ctx).viewInsets.bottom + 12,
-                left: 16,
-                right: 16,
-                top: 14,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      InkWell(
-                        onTap: () => startVoice(setModalState),
-                        borderRadius: BorderRadius.circular(20),
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF2563EB).withOpacity(0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.mic_rounded,
-                            color: Color(0xFF2563EB),
-                            size: 22,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      const Text(
-                        'Dikte Suara / Teks ke PC',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.close_rounded, color: Colors.white60, size: 22),
-                        onPressed: () => Navigator.pop(ctx),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  // Dedicated prominent voice button
-                  InkWell(
-                    onTap: () => startVoice(setModalState),
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1E293B),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFF2563EB), width: 1.2),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Icon(Icons.mic_rounded, color: Color(0xFF60A5FA), size: 20),
-                          SizedBox(width: 8),
-                          Text(
-                            'Tap untuk Bicara (Dikte Suara)',
-                            style: TextStyle(
-                              color: Color(0xFF93C5FD),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
+            return GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: hideKeyboard,
+              child: Padding(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(ctx).viewInsets.bottom + 12,
+                  left: 16,
+                  right: 16,
+                  top: 14,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        InkWell(
+                          onTap: () => startVoice(setModalState),
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2563EB).withOpacity(0.2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.mic_rounded,
+                              color: Color(0xFF2563EB),
+                              size: 22,
                             ),
                           ),
-                        ],
+                        ),
+                        const SizedBox(width: 10),
+                        const Text(
+                          'Dikte Suara / Teks ke PC',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Spacer(),
+                        InkWell(
+                          onTap: hideKeyboard,
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            margin: const EdgeInsets.only(right: 8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1E293B),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: const Color(0xFF334155), width: 1),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                Icon(Icons.keyboard_hide_rounded, size: 14, color: Color(0xFF93C5FD)),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Hide',
+                                  style: TextStyle(
+                                    color: Color(0xFF93C5FD),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, color: Colors.white60, size: 22),
+                          onPressed: () {
+                            hideKeyboard();
+                            Navigator.pop(ctx);
+                          },
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // Dedicated prominent voice button
+                    InkWell(
+                      onTap: () => startVoice(setModalState),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E293B),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFF2563EB), width: 1.2),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.mic_rounded, color: Color(0xFF60A5FA), size: 20),
+                            SizedBox(width: 8),
+                            Text(
+                              'Tap untuk Bicara (Dikte Suara)',
+                              style: TextStyle(
+                                color: Color(0xFF93C5FD),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: textController,
-                    focusNode: focusNode,
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
-                    maxLines: null,
-                    decoration: InputDecoration(
-                      hintText: 'Ketik teks atau gunakan tombol suara di atas...',
-                      hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
-                      filled: true,
-                      fillColor: const Color(0xFF1E293B),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.mic_rounded, color: Color(0xFF2563EB)),
-                        onPressed: () => startVoice(setModalState),
-                        tooltip: 'Bicara Sekarang',
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: textController,
+                      focusNode: focusNode,
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                      maxLines: null,
+                      decoration: InputDecoration(
+                        hintText: 'Ketik teks atau gunakan tombol suara di atas...',
+                        hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
+                        filled: true,
+                        fillColor: const Color(0xFF1E293B),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.mic_rounded, color: Color(0xFF2563EB)),
+                          onPressed: () => startVoice(setModalState),
+                          tooltip: 'Bicara Sekarang',
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFF334155)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFF334155)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFF2563EB)),
+                        ),
                       ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0xFF334155)),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0xFF334155)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0xFF2563EB)),
-                      ),
+                      onSubmitted: (value) {
+                        if (value.isNotEmpty) {
+                          bind.sessionInputString(sessionId: widget.sessionId, value: value);
+                        }
+                        hideKeyboard();
+                        Navigator.pop(ctx);
+                      },
                     ),
-                    onSubmitted: (value) {
-                      if (value.isNotEmpty) {
-                        bind.sessionInputString(sessionId: widget.sessionId, value: value);
-                      }
-                      Navigator.pop(ctx);
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.send_rounded, size: 16),
-                    label: const Text('Kirim ke PC'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2563EB),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        // [ ⌨ Hide ] button as requested by user
+                        Expanded(
+                          flex: 2,
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.keyboard_hide_rounded, size: 18, color: Color(0xFF94A3B8)),
+                            label: const Text(
+                              'Hide',
+                              style: TextStyle(
+                                color: Color(0xFFE2E8F0),
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Color(0xFF475569), width: 1),
+                              backgroundColor: const Color(0xFF1E293B),
+                              padding: const EdgeInsets.symmetric(vertical: 11),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            onPressed: hideKeyboard,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        // [ ✈ Kirim ke PC ] button
+                        Expanded(
+                          flex: 3,
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.send_rounded, size: 16),
+                            label: const Text(
+                              'Kirim ke PC',
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF2563EB),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 11),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            onPressed: () {
+                              final text = textController.text;
+                              if (text.isNotEmpty) {
+                                bind.sessionInputString(sessionId: widget.sessionId, value: text);
+                              }
+                              hideKeyboard();
+                              Navigator.pop(ctx);
+                            },
+                          ),
+                        ),
+                      ],
                     ),
-                    onPressed: () {
-                      final text = textController.text;
-                      if (text.isNotEmpty) {
-                        bind.sessionInputString(sessionId: widget.sessionId, value: text);
-                      }
-                      Navigator.pop(ctx);
-                    },
-                  ),
-                ],
+                  ],
+                ),
               ),
             );
           },
