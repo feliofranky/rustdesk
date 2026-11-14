@@ -7,17 +7,15 @@ import 'package:flutter_hbb/models/input_model.dart';
 import 'package:flutter_hbb/models/model.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
 
-/// Global visibility notifier for the floating D-pad bubble
-final ValueNotifier<bool> herzDpadVisible = ValueNotifier<bool>(false);
-
 /// HerzCompanionToolbar:
 /// Hybrid orientation-adaptive companion toolbar.
 /// - In Portrait: Two permanent rows (Row 1: Undo, Redo, D-Pad, Save, Find, Lock PC;
 ///   Row 2: Paste, Voice Mic, Snip, Right Click, Fit Screen Zoom).
 /// - In Landscape: Single slim 38px row with all 11 tools, zero screen obstruction.
-/// - Fixed height: Never expands or pushes the remote PC canvas.
-/// - Flat solid theme: Slate-800 (#1E293B), Accent Blue (#2563EB).
-class HerzCompanionToolbar extends StatelessWidget {
+/// - D-Pad: Attached directly above toolbar rows for precise cursor navigation, zero floating gap.
+/// - Voice Mic: Native speech-to-text dictation + enabled soft keyboard for instant text input to remote PC.
+/// - Flat solid theme: Slate-800 (#1E293B), Slate-900 (#0F172A), Accent Blue (#2563EB).
+class HerzCompanionToolbar extends StatefulWidget {
   final SessionID sessionId;
   final FFI gFFI;
 
@@ -27,9 +25,16 @@ class HerzCompanionToolbar extends StatelessWidget {
     required this.gFFI,
   }) : super(key: key);
 
+  @override
+  State<HerzCompanionToolbar> createState() => _HerzCompanionToolbarState();
+}
+
+class _HerzCompanionToolbarState extends State<HerzCompanionToolbar> {
+  bool _showDpad = false;
+
   void _onUndo() {
     bind.sessionInputKey(
-      sessionId: sessionId,
+      sessionId: widget.sessionId,
       name: 'z',
       down: false,
       press: true,
@@ -42,7 +47,7 @@ class HerzCompanionToolbar extends StatelessWidget {
 
   void _onRedo() {
     bind.sessionInputKey(
-      sessionId: sessionId,
+      sessionId: widget.sessionId,
       name: 'y',
       down: false,
       press: true,
@@ -55,7 +60,7 @@ class HerzCompanionToolbar extends StatelessWidget {
 
   void _onSave() {
     bind.sessionInputKey(
-      sessionId: sessionId,
+      sessionId: widget.sessionId,
       name: 's',
       down: false,
       press: true,
@@ -68,7 +73,7 @@ class HerzCompanionToolbar extends StatelessWidget {
 
   void _onFind() {
     bind.sessionInputKey(
-      sessionId: sessionId,
+      sessionId: widget.sessionId,
       name: 'f',
       down: false,
       press: true,
@@ -81,8 +86,21 @@ class HerzCompanionToolbar extends StatelessWidget {
 
   void _onLock() {
     bind.sessionInputKey(
-      sessionId: sessionId,
+      sessionId: widget.sessionId,
       name: 'LOCK_SCREEN',
+      down: false,
+      press: true,
+      ctrl: false,
+      alt: false,
+      shift: false,
+      command: false,
+    );
+  }
+
+  void _sendKey(String keyName) {
+    bind.sessionInputKey(
+      sessionId: widget.sessionId,
+      name: keyName,
       down: false,
       press: true,
       ctrl: false,
@@ -97,7 +115,7 @@ class HerzCompanionToolbar extends StatelessWidget {
       final clipData = await Clipboard.getData(Clipboard.kTextPlain);
       final phoneText = clipData?.text;
       if (phoneText != null && phoneText.isNotEmpty) {
-        bind.sessionInputString(sessionId: sessionId, value: phoneText);
+        bind.sessionInputString(sessionId: widget.sessionId, value: phoneText);
         return;
       }
     } catch (e) {
@@ -105,7 +123,7 @@ class HerzCompanionToolbar extends StatelessWidget {
     }
 
     bind.sessionInputKey(
-      sessionId: sessionId,
+      sessionId: widget.sessionId,
       name: 'v',
       down: false,
       press: true,
@@ -116,8 +134,33 @@ class HerzCompanionToolbar extends StatelessWidget {
     );
   }
 
-  void _onVoiceMic(BuildContext context) {
+  void _onVoiceMic(BuildContext context) async {
+    // 1. Enable soft keyboard so Android IME can show up when typing or tapping text field
+    await widget.gFFI.invokeMethod("enable_soft_keyboard", true);
+
     final textController = TextEditingController();
+    final focusNode = FocusNode();
+
+    Future<void> startVoice(StateSetter setModalState) async {
+      try {
+        final spoken = await widget.gFFI.invokeMethodWithResult<String>('start_speech_recognition');
+        if (spoken != null && spoken.isNotEmpty) {
+          setModalState(() {
+            if (textController.text.isEmpty) {
+              textController.text = spoken;
+            } else {
+              textController.text = '${textController.text} $spoken';
+            }
+            textController.selection = TextSelection.fromPosition(
+              TextPosition(offset: textController.text.length),
+            );
+          });
+        }
+      } catch (e) {
+        debugPrint('Speech recognition error: $e');
+      }
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -126,97 +169,155 @@ class HerzCompanionToolbar extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 12,
-            left: 16,
-            right: 16,
-            top: 14,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 12,
+                left: 16,
+                right: 16,
+                top: 14,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(Icons.mic_rounded, color: Color(0xFF2563EB), size: 20),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Dikte Suara / Teks ke PC',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
+                  Row(
+                    children: [
+                      InkWell(
+                        onTap: () => startVoice(setModalState),
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2563EB).withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.mic_rounded,
+                            color: Color(0xFF2563EB),
+                            size: 22,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      const Text(
+                        'Dikte Suara / Teks ke PC',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, color: Colors.white60, size: 22),
+                        onPressed: () => Navigator.pop(ctx),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  // Dedicated prominent voice button
+                  InkWell(
+                    onTap: () => startVoice(setModalState),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E293B),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFF2563EB), width: 1.2),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.mic_rounded, color: Color(0xFF60A5FA), size: 20),
+                          SizedBox(width: 8),
+                          Text(
+                            'Tap untuk Bicara (Dikte Suara)',
+                            style: TextStyle(
+                              color: Color(0xFF93C5FD),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded, color: Colors.white60, size: 20),
-                    onPressed: () => Navigator.pop(ctx),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: textController,
+                    focusNode: focusNode,
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                    maxLines: null,
+                    decoration: InputDecoration(
+                      hintText: 'Ketik teks atau gunakan tombol suara di atas...',
+                      hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
+                      filled: true,
+                      fillColor: const Color(0xFF1E293B),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.mic_rounded, color: Color(0xFF2563EB)),
+                        onPressed: () => startVoice(setModalState),
+                        tooltip: 'Bicara Sekarang',
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Color(0xFF334155)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Color(0xFF334155)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Color(0xFF2563EB)),
+                      ),
+                    ),
+                    onSubmitted: (value) {
+                      if (value.isNotEmpty) {
+                        bind.sessionInputString(sessionId: widget.sessionId, value: value);
+                      }
+                      Navigator.pop(ctx);
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.send_rounded, size: 16),
+                    label: const Text('Kirim ke PC'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2563EB),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () {
+                      final text = textController.text;
+                      if (text.isNotEmpty) {
+                        bind.sessionInputString(sessionId: widget.sessionId, value: text);
+                      }
+                      Navigator.pop(ctx);
+                    },
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: textController,
-                autofocus: true,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: 'Tap icon mic di keyboard HP lalu bicara...',
-                  hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
-                  filled: true,
-                  fillColor: const Color(0xFF1E293B),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFF334155)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFF334155)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFF2563EB)),
-                  ),
-                ),
-                onSubmitted: (value) {
-                  if (value.isNotEmpty) {
-                    bind.sessionInputString(sessionId: sessionId, value: value);
-                  }
-                  Navigator.pop(ctx);
-                },
-              ),
-              const SizedBox(height: 10),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.send_rounded, size: 16),
-                label: const Text('Kirim ke PC'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2563EB),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                onPressed: () {
-                  final text = textController.text;
-                  if (text.isNotEmpty) {
-                    bind.sessionInputString(sessionId: sessionId, value: text);
-                  }
-                  Navigator.pop(ctx);
-                },
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
-    );
+    ).whenComplete(() {
+      widget.gFFI.invokeMethod("enable_soft_keyboard", false);
+      textController.dispose();
+      focusNode.dispose();
+    });
   }
 
   void _onSnip() {
     bind.sessionInputKey(
-      sessionId: sessionId,
+      sessionId: widget.sessionId,
       name: 'S',
       down: false,
       press: true,
@@ -228,19 +329,19 @@ class HerzCompanionToolbar extends StatelessWidget {
   }
 
   void _onRightClick() {
-    gFFI.inputModel.sendMouse('down', MouseButtons.right);
+    widget.gFFI.inputModel.sendMouse('down', MouseButtons.right);
     Future.delayed(const Duration(milliseconds: 60), () {
-      gFFI.inputModel.sendMouse('up', MouseButtons.right);
+      widget.gFFI.inputModel.sendMouse('up', MouseButtons.right);
     });
   }
 
   void _onZoom() async {
-    final cur = await bind.sessionGetViewStyle(sessionId: sessionId) ?? '';
+    final cur = await bind.sessionGetViewStyle(sessionId: widget.sessionId) ?? '';
     final next = (cur == kRemoteViewStyleOriginal)
         ? kRemoteViewStyleAdaptive
         : kRemoteViewStyleOriginal;
-    await bind.sessionSetViewStyle(sessionId: sessionId, value: next);
-    gFFI.canvasModel.updateViewStyle();
+    await bind.sessionSetViewStyle(sessionId: widget.sessionId, value: next);
+    widget.gFFI.canvasModel.updateViewStyle();
   }
 
   Widget _buildIconButton({
@@ -269,29 +370,88 @@ class HerzCompanionToolbar extends StatelessWidget {
   }
 
   Widget _buildDpadTrigger() {
-    return ValueListenableBuilder<bool>(
-      valueListenable: herzDpadVisible,
-      builder: (context, visible, child) {
-        return InkWell(
-          onTap: () {
-            herzDpadVisible.value = !herzDpadVisible.value;
-          },
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _showDpad = !_showDpad;
+        });
+      },
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: _showDpad ? const Color(0xFF2563EB) : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
-          child: Container(
-            height: 32,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: visible ? const Color(0xFF2563EB) : Colors.transparent,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: const Icon(
-              Icons.control_camera_rounded,
-              size: 20,
-              color: Colors.white,
+        ),
+        child: const Icon(
+          Icons.control_camera_rounded,
+          size: 20,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDpadItem(IconData icon, String keyName) {
+    return InkWell(
+      onTap: () => _sendKey(keyName),
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        width: 42,
+        height: 34,
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E293B),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        margin: const EdgeInsets.symmetric(horizontal: 3),
+        alignment: Alignment.center,
+        child: Icon(
+          icon,
+          size: 22,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDpadBubble() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A), // Slate-900
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF334155), width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildDpadItem(Icons.arrow_back_rounded, 'VK_LEFT'),
+          _buildDpadItem(Icons.arrow_upward_rounded, 'VK_UP'),
+          _buildDpadItem(Icons.arrow_downward_rounded, 'VK_DOWN'),
+          _buildDpadItem(Icons.arrow_forward_rounded, 'VK_RIGHT'),
+          Container(
+            height: 24,
+            width: 1,
+            color: const Color(0xFF334155),
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+          ),
+          _buildDpadItem(Icons.keyboard_return_rounded, 'VK_RETURN'),
+          const SizedBox(width: 4),
+          InkWell(
+            onTap: () {
+              setState(() {
+                _showDpad = false;
+              });
+            },
+            borderRadius: BorderRadius.circular(6),
+            child: const Padding(
+              padding: EdgeInsets.all(6),
+              child: Icon(Icons.close_rounded, size: 20, color: Colors.white60),
             ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 
@@ -308,51 +468,55 @@ class HerzCompanionToolbar extends StatelessWidget {
           bottom: BorderSide(color: Colors.white.withOpacity(0.08), width: 1),
         ),
       ),
-      child: isPortrait
-          ? Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Row 1: Separate Undo, Redo, D-Pad, Save, Find, Lock PC (6 spacious buttons)
-                Container(
-                  height: 38,
-                  decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(
-                        color: Colors.white.withOpacity(0.06),
-                        width: 1,
-                      ),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildIconButton(icon: Icons.undo_rounded, onTap: _onUndo, size: 22),
-                      _buildIconButton(icon: Icons.redo_rounded, onTap: _onRedo, size: 22),
-                      _buildDpadTrigger(),
-                      _buildIconButton(icon: Icons.save_rounded, onTap: _onSave),
-                      _buildIconButton(icon: Icons.search_rounded, onTap: _onFind),
-                      _buildIconButton(icon: Icons.lock_outline_rounded, onTap: _onLock),
-                    ],
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_showDpad)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: _buildDpadBubble(),
+            ),
+          if (isPortrait) ...[
+            // Row 1: Separate Undo, Redo, D-Pad, Save, Find, Lock PC (6 spacious buttons)
+            Container(
+              height: 38,
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: Colors.white.withOpacity(0.06),
+                    width: 1,
                   ),
                 ),
-                // Row 2: Paste, Voice Mic, Snip, Right Click, Fit Screen (5 buttons)
-                SizedBox(
-                  height: 38,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildIconButton(icon: Icons.paste_rounded, onTap: _onPaste),
-                      _buildIconButton(icon: Icons.mic_none_rounded, onTap: () => _onVoiceMic(context)),
-                      _buildIconButton(icon: Icons.content_cut_rounded, onTap: _onSnip),
-                      _buildIconButton(icon: Icons.mouse_rounded, onTap: _onRightClick),
-                      _buildIconButton(icon: Icons.fit_screen_rounded, onTap: _onZoom),
-                    ],
-                  ),
-                ),
-              ],
-            )
-          : SizedBox(
-              // Landscape: Single slim 38px row with all 11 tools
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildIconButton(icon: Icons.undo_rounded, onTap: _onUndo, size: 22),
+                  _buildIconButton(icon: Icons.redo_rounded, onTap: _onRedo, size: 22),
+                  _buildDpadTrigger(),
+                  _buildIconButton(icon: Icons.save_rounded, onTap: _onSave),
+                  _buildIconButton(icon: Icons.search_rounded, onTap: _onFind),
+                  _buildIconButton(icon: Icons.lock_outline_rounded, onTap: _onLock),
+                ],
+              ),
+            ),
+            // Row 2: Paste, Voice Mic, Snip, Right Click, Fit Screen (5 buttons)
+            SizedBox(
+              height: 38,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildIconButton(icon: Icons.paste_rounded, onTap: _onPaste),
+                  _buildIconButton(icon: Icons.mic_none_rounded, onTap: () => _onVoiceMic(context)),
+                  _buildIconButton(icon: Icons.content_cut_rounded, onTap: _onSnip),
+                  _buildIconButton(icon: Icons.mouse_rounded, onTap: _onRightClick),
+                  _buildIconButton(icon: Icons.fit_screen_rounded, onTap: _onZoom),
+                ],
+              ),
+            ),
+          ] else ...[
+            // Landscape: Single slim 38px row with all 11 tools
+            SizedBox(
               height: 38,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -371,116 +535,9 @@ class HerzCompanionToolbar extends StatelessWidget {
                 ],
               ),
             ),
-    );
-  }
-}
-
-/// HerzDpadFloatingBubble:
-/// Floating D-pad bubble that hovers above the companion toolbar inside the body Stack.
-/// Does NOT expand the bottom navigation bar and does NOT shrink the remote PC canvas.
-class HerzDpadFloatingBubble extends StatelessWidget {
-  final SessionID sessionId;
-  final FFI gFFI;
-
-  const HerzDpadFloatingBubble({
-    Key? key,
-    required this.sessionId,
-    required this.gFFI,
-  }) : super(key: key);
-
-  void _sendKey(String keyName) {
-    bind.sessionInputKey(
-      sessionId: sessionId,
-      name: keyName,
-      down: false,
-      press: true,
-      ctrl: false,
-      alt: false,
-      shift: false,
-      command: false,
-    );
-  }
-
-  Widget _buildDpadItem(IconData icon, String keyName) {
-    return InkWell(
-      onTap: () => _sendKey(keyName),
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        width: 44,
-        height: 38,
-        decoration: BoxDecoration(
-          color: const Color(0xFF1E293B),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        margin: const EdgeInsets.symmetric(horizontal: 3),
-        alignment: Alignment.center,
-        child: Icon(
-          icon,
-          size: 24, // Bold and thick, highly visible!
-          color: Colors.white,
-        ),
+          ],
+        ],
       ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isPortrait =
-        MediaQuery.of(context).orientation == Orientation.portrait;
-
-    return ValueListenableBuilder<bool>(
-      valueListenable: herzDpadVisible,
-      builder: (context, visible, child) {
-        if (!visible) return const SizedBox.shrink();
-
-        return Positioned(
-          left: 0,
-          right: 0,
-          bottom: isPortrait ? 84 : 44, // Floating cleanly above companion toolbar
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0F172A), // Slate-900
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFF334155), width: 1),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.6),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildDpadItem(Icons.arrow_back_rounded, 'VK_LEFT'),
-                  _buildDpadItem(Icons.arrow_upward_rounded, 'VK_UP'),
-                  _buildDpadItem(Icons.arrow_downward_rounded, 'VK_DOWN'),
-                  _buildDpadItem(Icons.arrow_forward_rounded, 'VK_RIGHT'),
-                  Container(
-                    height: 24,
-                    width: 1,
-                    color: const Color(0xFF334155),
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                  ),
-                  _buildDpadItem(Icons.keyboard_return_rounded, 'VK_RETURN'),
-                  const SizedBox(width: 4),
-                  InkWell(
-                    onTap: () => herzDpadVisible.value = false,
-                    borderRadius: BorderRadius.circular(6),
-                    child: const Padding(
-                      padding: EdgeInsets.all(6),
-                      child: Icon(Icons.close_rounded, size: 18, color: Colors.white54),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
     );
   }
 }

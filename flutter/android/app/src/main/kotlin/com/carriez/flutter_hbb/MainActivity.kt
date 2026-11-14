@@ -74,6 +74,8 @@ class MainActivity : FlutterActivity() {
     )
 
     private var pendingPicker: PendingPicker? = null
+    private var pendingSpeechResult: MethodChannel.Result? = null
+    private val REQ_SPEECH_RECOGNITION = 10099
     private val documentPicker by lazy { DocumentPicker(this) }
 
     private var isAudioStart = false
@@ -129,6 +131,18 @@ class MainActivity : FlutterActivity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQ_SPEECH_RECOGNITION) {
+            val pending = pendingSpeechResult
+            pendingSpeechResult = null
+            if (resultCode == Activity.RESULT_OK && data != null) {
+                val matches = data.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)
+                val text = matches?.firstOrNull() ?: ""
+                pending?.success(text)
+            } else {
+                pending?.success("")
+            }
+            return
+        }
         if (documentPicker.onResult(requestCode, resultCode, data)) return
         if (requestCode == REQ_IMPORT_FILES) {
             val pending = pendingPicker as? PendingPicker.ImportFiles ?: return
@@ -376,6 +390,27 @@ class MainActivity : FlutterActivity() {
                         mainService?.cancelNotification(id)
                     } else {
                         result.success(true)
+                    }
+                }
+                "start_speech_recognition" -> {
+                    try {
+                        val intent = Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                            putExtra(
+                                android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                                android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                            )
+                            putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, "Bicara sekarang...")
+                        }
+                        if (pendingSpeechResult != null) {
+                            try {
+                                pendingSpeechResult?.success("")
+                            } catch (_: Exception) {}
+                        }
+                        pendingSpeechResult = result
+                        startActivityForResult(intent, REQ_SPEECH_RECOGNITION)
+                    } catch (e: Exception) {
+                        Log.e(logTag, "Speech recognition failed to launch: ${e.message}", e)
+                        result.success("")
                     }
                 }
                 "enable_soft_keyboard" -> {
