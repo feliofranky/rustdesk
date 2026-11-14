@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/models/input_model.dart';
@@ -19,7 +20,21 @@ class HerzCompanionToolbar extends StatelessWidget {
     required this.gFFI,
   }) : super(key: key);
 
-  void _onPaste() {
+  void _onPaste() async {
+    // 1. Check if there is text in Android phone clipboard
+    try {
+      final clipData = await Clipboard.getData(Clipboard.kTextPlain);
+      final phoneText = clipData?.text;
+      if (phoneText != null && phoneText.isNotEmpty) {
+        bind.sessionInputString(sessionId: sessionId, value: phoneText);
+        showToast('Teks dari HP berhasil ditempel!');
+        return;
+      }
+    } catch (e) {
+      debugPrint('Failed to read phone clipboard: $e');
+    }
+
+    // 2. Fallback: Send Ctrl+V to remote PC session
     bind.sessionInputKey(
       sessionId: sessionId,
       name: 'v',
@@ -30,6 +45,7 @@ class HerzCompanionToolbar extends StatelessWidget {
       shift: false,
       command: false,
     );
+    showToast('Ctrl + V dikirim ke PC');
   }
 
   void _onSnip() {
@@ -97,7 +113,7 @@ class HerzCompanionToolbar extends StatelessWidget {
           _buildIconButton(
             icon: Icons.paste_rounded,
             onTap: _onPaste,
-            tooltip: 'Paste (Ctrl+V)',
+            tooltip: 'Paste (Ctrl+V / Teks HP)',
           ),
           _buildIconButton(
             icon: Icons.content_cut_rounded,
@@ -122,10 +138,10 @@ class HerzCompanionToolbar extends StatelessWidget {
 
 /// HerzScrollSlider:
 /// Right-edge vertical scroll slider with:
-/// - Speed button at the top tip (0.3x Pelan/Baca, 1.0x Normal, 2.0x Cepat)
-/// - Sub-pixel drag accumulator for buttery smooth, line-by-line reading
-/// - Blue track line with white circular knob
-/// - Sized for natural thumb reach
+/// - Shifted slightly left to match green line thumb comfort zone
+/// - Wide 64px hit target so thumb gestures in red zone never miss
+/// - Borderless speed button at the top tip (0.3x, 1.0x, 2.0x)
+/// - Zero-latency responsive accumulator for silky line-by-line scrolling
 class HerzScrollSlider extends StatefulWidget {
   final SessionID sessionId;
   final FFI gFFI;
@@ -150,7 +166,6 @@ class _HerzScrollSliderState extends State<HerzScrollSlider> {
   ];
 
   double _thumbPositionRatio = 0.5; // 0.0 top, 1.0 bottom
-  double _lastDragY = 0;
   double _dragAccumulator = 0.0;
 
   void _cycleSpeed() {
@@ -161,39 +176,31 @@ class _HerzScrollSliderState extends State<HerzScrollSlider> {
   }
 
   void _handleDragStart(DragStartDetails details) {
-    _lastDragY = details.localPosition.dy;
     _dragAccumulator = 0.0;
   }
 
   void _handleDragUpdate(DragUpdateDetails details, double trackHeight) {
-    final delta = details.localPosition.dy - _lastDragY;
-    _lastDragY = details.localPosition.dy;
+    final delta = details.delta.dy;
 
-    _dragAccumulator += delta;
-
-    // Pixels of thumb drag required per 1 mouse wheel notch:
-    // 0.3x (Slow): 28.0 px/tick -> line-by-line micro scrolling for easy reading
-    // 1.0x (Normal): 14.0 px/tick -> standard comfortable scroll
-    // 2.0x (Fast): 6.0 px/tick -> rapid skimming
-    final double pixelsPerTick;
+    final double multiplier;
     switch (_speedIndex) {
       case 0:
-        pixelsPerTick = 28.0;
+        multiplier = 0.6; // 0.3x Pelan / Mode Baca
         break;
       case 1:
-        pixelsPerTick = 14.0;
+        multiplier = 1.6; // 1.0x Normal
         break;
       case 2:
       default:
-        pixelsPerTick = 6.0;
+        multiplier = 3.5; // 2.0x Cepat
         break;
     }
 
-    final int ticks = (_dragAccumulator / pixelsPerTick).truncate();
-    if (ticks != 0) {
-      _dragAccumulator -= ticks * pixelsPerTick;
-      // Dragging down (delta > 0) scrolls down (-ticks)
-      widget.gFFI.inputModel.scroll(-ticks);
+    _dragAccumulator += delta * multiplier;
+    final toSend = _dragAccumulator.round();
+    if (toSend != 0) {
+      _dragAccumulator -= toSend;
+      widget.gFFI.inputModel.scroll(-toSend);
     }
 
     setState(() {
@@ -219,26 +226,24 @@ class _HerzScrollSliderState extends State<HerzScrollSlider> {
     final isPortrait =
         MediaQuery.of(context).orientation == Orientation.portrait;
 
+    // Shifted left: right = 20, width = 64 (center of track is at right = 52, exactly on the green line)
+    // The entire 64px width acts as an opaque hit target so thumb swipes in the red zone never miss!
     return Positioned(
-      right: 4,
+      right: 20,
       top: isPortrait ? MediaQuery.of(context).size.height * 0.30 : 16,
       bottom: isPortrait ? 12 : 16,
-      width: 32,
+      width: 64,
       child: Column(
         children: [
-          // Speed button at the top tip of scroll slider
+          // Borderless Speed button at the top tip of scroll slider
           GestureDetector(
             onTap: _cycleSpeed,
             child: Container(
-              width: 32,
+              width: 36,
               height: 22,
               decoration: BoxDecoration(
-                color: const Color(0xFF1E293B), // slate-800
+                color: const Color(0xFF1E293B), // slate-800 without blue border
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(
-                  color: const Color(0xFF3B82F6), // blue-500
-                  width: 1.2,
-                ),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.35),
@@ -260,12 +265,12 @@ class _HerzScrollSliderState extends State<HerzScrollSlider> {
             ),
           ),
           const SizedBox(height: 6),
-          // Vertical Slider Track
+          // Vertical Slider Track with wide touch target
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final trackHeight = constraints.maxHeight;
-                final knobSize = 20.0;
+                final knobSize = 22.0;
                 final topOffset =
                     ((trackHeight - knobSize) * _thumbPositionRatio)
                         .clamp(0.0, trackHeight - knobSize);
@@ -279,7 +284,7 @@ class _HerzScrollSliderState extends State<HerzScrollSlider> {
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      // Blue Track Line
+                      // Blue Track Line (centered in the 64px touch zone)
                       Container(
                         width: 5,
                         height: trackHeight,
