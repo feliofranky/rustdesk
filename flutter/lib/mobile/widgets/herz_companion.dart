@@ -27,7 +27,7 @@ class HerzCompanionToolbar extends StatelessWidget {
       final phoneText = clipData?.text;
       if (phoneText != null && phoneText.isNotEmpty) {
         bind.sessionInputString(sessionId: sessionId, value: phoneText);
-        showToast('Teks dari HP berhasil ditempel!');
+        // Silent paste without toast
         return;
       }
     } catch (e) {
@@ -45,7 +45,7 @@ class HerzCompanionToolbar extends StatelessWidget {
       shift: false,
       command: false,
     );
-    showToast('Ctrl + V dikirim ke PC');
+    // Silent paste without toast
   }
 
   void _onSnip() {
@@ -280,27 +280,28 @@ class _HerzScrollSliderState extends State<HerzScrollSlider>
     final isPortrait =
         MediaQuery.of(context).orientation == Orientation.portrait;
 
-    // Positioned right at right edge with width: 44px
-    // Track sits centered at 22px from right edge (matching green line)
-    // Left edge stops at 44px from right edge (does not intrude into document)
+    // Positioned right at right edge with width: 54px
+    // Track sits centered at 27px from right edge (matching green line thumb zone)
+    // Extra generous hit target for speed button so tapping directly on or right of text always registers
     return Positioned(
       right: 0,
       top: isPortrait ? MediaQuery.of(context).size.height * 0.30 : 16,
       bottom: isPortrait ? 12 : 16,
-      width: 44,
+      width: 54,
       child: Column(
         children: [
-          // Speed button with generous 44x38 hit target (never missed even when zoomed in)
+          // Speed button with generous 54x42 hit target
           GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: _cycleSpeed,
             child: Container(
-              width: 44,
-              height: 38,
+              width: 54,
+              height: 42,
               alignment: Alignment.center,
+              color: Colors.transparent,
               child: Container(
-                width: 38,
-                height: 24,
+                width: 40,
+                height: 26,
                 decoration: BoxDecoration(
                   color: const Color(0xFF1E293B), // slate-800 without blue border
                   borderRadius: BorderRadius.circular(6),
@@ -317,7 +318,7 @@ class _HerzScrollSliderState extends State<HerzScrollSlider>
                   _speedLabels[_speedIndex],
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 10,
+                    fontSize: 11,
                     fontWeight: FontWeight.bold,
                     decoration: TextDecoration.none,
                   ),
@@ -346,12 +347,12 @@ class _HerzScrollSliderState extends State<HerzScrollSlider>
                     onPointerUp: (_) => _onPointerUpOrCancel(),
                     onPointerCancel: (_) => _onPointerUpOrCancel(),
                     child: Container(
-                      width: 44,
+                      width: 54,
                       color: Colors.transparent,
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          // Blue Track Line (centered in the 44px touch strip)
+                          // Blue Track Line (centered in the 54px touch strip)
                           Container(
                             width: 5,
                             height: trackHeight,
