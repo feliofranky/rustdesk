@@ -589,6 +589,10 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
                                     sessionId: sessionId,
                                     gFFI: gFFI,
                                   ),
+                                  HerzDpadFloatingBubble(
+                                    sessionId: sessionId,
+                                    gFFI: gFFI,
+                                  ),
                                 ],
                               );
                             }),
