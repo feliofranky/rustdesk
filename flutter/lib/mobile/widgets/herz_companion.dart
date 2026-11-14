@@ -156,29 +156,52 @@ class HerzScrollSlider extends StatefulWidget {
   State<HerzScrollSlider> createState() => _HerzScrollSliderState();
 }
 
-class _HerzScrollSliderState extends State<HerzScrollSlider> {
-  static int _speedIndex = 0; // Default: 0.1x (Super Pelan / Mode Baca)
-  static const List<String> _speedLabels = ['0.1x', '0.3x', '1.0x', '2.0x'];
-  static const List<String> _speedDescs = [
-    '0.1x (Super Pelan / Mode Baca)',
-    '0.3x (Pelan)',
-    '1.0x (Normal)',
-    '2.0x (Cepat / Turbo)',
-  ];
+class _HerzScrollSliderState extends State<HerzScrollSlider>
+    with SingleTickerProviderStateMixin {
+  // Default: 0.3x, then cycles to 1.0x -> 2.0x -> 0.1x -> 0.3x
+  static int _speedIndex = 0;
+  static const List<String> _speedLabels = ['0.3x', '1.0x', '2.0x', '0.1x'];
 
   double _thumbPositionRatio = 0.5; // 0.0 top, 1.0 bottom
   double _dragAccumulator = 0.0;
   double _lastPointerY = 0.0;
   bool _isDragging = false;
+  Timer? _returnTimer;
+
+  late final AnimationController _animController;
+  late Animation<double> _thumbAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+    _animController.addListener(() {
+      setState(() {
+        _thumbPositionRatio = _thumbAnimation.value;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _returnTimer?.cancel();
+    _animController.dispose();
+    super.dispose();
+  }
 
   void _cycleSpeed() {
     setState(() {
       _speedIndex = (_speedIndex + 1) % _speedLabels.length;
     });
-    showToast('Kecepatan Scroll: ${_speedDescs[_speedIndex]}');
+    // Silent switch without toast
   }
 
   void _onPointerDown(PointerDownEvent event) {
+    _returnTimer?.cancel();
+    _animController.stop();
     _lastPointerY = event.position.dy;
     _dragAccumulator = 0.0;
     _isDragging = true;
@@ -191,17 +214,17 @@ class _HerzScrollSliderState extends State<HerzScrollSlider> {
 
     // Physical pixel distance required per 1 wheel notch
     final double pixelsPerWheelTick;
-    switch (_speedIndex) {
-      case 0:
-        pixelsPerWheelTick = 42.0; // 0.1x: ~42px thumb drag = 1 gentle wheel tick (3 lines of text)
+    switch (_speedLabels[_speedIndex]) {
+      case '0.1x':
+        pixelsPerWheelTick = 42.0; // 0.1x: ~42px thumb drag = 1 gentle wheel tick (3 lines)
         break;
-      case 1:
+      case '0.3x':
         pixelsPerWheelTick = 22.0; // 0.3x: ~22px per tick
         break;
-      case 2:
+      case '1.0x':
         pixelsPerWheelTick = 10.0; // 1.0x: ~10px per tick
         break;
-      case 3:
+      case '2.0x':
       default:
         pixelsPerWheelTick = 4.0;  // 2.0x: ~4px per tick
         break;
@@ -233,12 +256,21 @@ class _HerzScrollSliderState extends State<HerzScrollSlider> {
   void _onPointerUpOrCancel() {
     _isDragging = false;
     _dragAccumulator = 0.0;
-    // Smoothly snap thumb back to center so user always has full stroke headroom
-    Timer(const Duration(milliseconds: 300), () {
+    _returnTimer?.cancel();
+
+    // Silky smooth spring return to center (0.5)
+    _returnTimer = Timer(const Duration(milliseconds: 120), () {
       if (mounted && !_isDragging) {
-        setState(() {
-          _thumbPositionRatio = 0.5;
-        });
+        _thumbAnimation = Tween<double>(
+          begin: _thumbPositionRatio,
+          end: 0.5,
+        ).animate(
+          CurvedAnimation(
+            parent: _animController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
+        _animController.forward(from: 0.0);
       }
     });
   }
@@ -258,37 +290,42 @@ class _HerzScrollSliderState extends State<HerzScrollSlider> {
       width: 44,
       child: Column(
         children: [
-          // Borderless Speed button at the top tip of scroll slider
+          // Speed button with generous 44x38 hit target (never missed even when zoomed in)
           GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: _cycleSpeed,
             child: Container(
-              width: 36,
-              height: 22,
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E293B), // slate-800 without blue border
-                borderRadius: BorderRadius.circular(6),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.35),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
-              ),
+              width: 44,
+              height: 38,
               alignment: Alignment.center,
-              child: Text(
-                _speedLabels[_speedIndex],
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  decoration: TextDecoration.none,
+              child: Container(
+                width: 38,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E293B), // slate-800 without blue border
+                  borderRadius: BorderRadius.circular(6),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.4),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  _speedLabels[_speedIndex],
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    decoration: TextDecoration.none,
+                  ),
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 2),
           // Vertical Slider Track with direct Listener (unswallowable by PC canvas)
           Expanded(
             child: LayoutBuilder(
