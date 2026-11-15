@@ -459,14 +459,14 @@ class _HerzCompanionToolbarState extends State<HerzCompanionToolbar> {
       shift: false,
       command: true,
     );
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(const Duration(milliseconds: 350));
     // 2. Type "snippingtool"
     bind.sessionInputString(sessionId: widget.sessionId, value: 'snippingtool');
-    await Future.delayed(const Duration(milliseconds: 120));
-    // 3. Press Enter
+    await Future.delayed(const Duration(milliseconds: 200));
+    // 3. Press Enter (VK_RETURN)
     bind.sessionInputKey(
       sessionId: widget.sessionId,
-      name: 'Return',
+      name: 'VK_RETURN',
       down: false,
       press: true,
       ctrl: false,
