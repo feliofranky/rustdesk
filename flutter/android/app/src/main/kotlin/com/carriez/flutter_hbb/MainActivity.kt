@@ -15,6 +15,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.ClipboardManager
+import android.content.ContentValues
+import android.content.ClipData
+import android.provider.MediaStore
+import android.os.Environment
 import android.os.Bundle
 import android.os.Build
 import android.os.IBinder
@@ -304,6 +308,44 @@ class MainActivity : FlutterActivity() {
             if (documentPicker.handle(call, result)) return@setMethodCallHandler
             // make sure result will be invoked, otherwise flutter will await forever
             when (call.method) {
+                "sync_image_clipboard" -> {
+                    try {
+                        val pngBytes = call.argument<ByteArray>("bytes")
+                        val fileName = call.argument<String>("name") ?: "HerzMarkup_${System.currentTimeMillis()}.png"
+                        val copyToRemote = call.argument<Boolean>("copyToRemote") ?: true
+
+                        if (pngBytes != null && pngBytes.isNotEmpty()) {
+                            if (copyToRemote) {
+                                _rdClipboardManager?.sendImageToRemote(pngBytes)
+                            }
+                            try {
+                                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                val values = ContentValues().apply {
+                                    put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
+                                    put(MediaStore.Images.Media.MIME_TYPE, "image/png")
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                        put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                                    }
+                                }
+                                val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+                                if (uri != null) {
+                                    contentResolver.openOutputStream(uri)?.use { os ->
+                                        os.write(pngBytes)
+                                    }
+                                    val clip = ClipData.newUri(contentResolver, "HerzMarkup", uri)
+                                    clipboard.setPrimaryClip(clip)
+                                    Log.d(logTag, "Copied image to Android clipboard: $uri")
+                                }
+                            } catch (err: Exception) {
+                                Log.e(logTag, "Error copying to Android clipboard: ${err.message}")
+                            }
+                        }
+                        result.success(true)
+                    } catch (e: Exception) {
+                        Log.e(logTag, "sync_image_clipboard error: ${e.message}", e)
+                        result.success(false)
+                    }
+                }
                 "init_service" -> {
                     Intent(activity, MainService::class.java).also {
                         bindService(it, serviceConnection, Context.BIND_AUTO_CREATE)

@@ -139,11 +139,26 @@ class _HerzMarkupPageState extends State<HerzMarkupPage> {
     canvas.drawPath(path, paint);
   }
 
-  Future<String?> _saveToFile(Uint8List bytes, String suffix) async {
-    try {
-      final ts = DateTime.now().millisecondsSinceEpoch;
-      final fileName = 'HerzView_${suffix}_$ts.png';
+  static const MethodChannel _mChannel = MethodChannel('mChannel');
 
+  Future<void> _syncClipboard({
+    required Uint8List bytes,
+    required String name,
+    bool copyToRemote = true,
+  }) async {
+    try {
+      await _mChannel.invokeMethod('sync_image_clipboard', {
+        'bytes': bytes,
+        'name': name,
+        'copyToRemote': copyToRemote,
+      });
+    } catch (e) {
+      debugPrint('Error syncing image clipboard: $e');
+    }
+  }
+
+  Future<String?> _saveToFile(Uint8List bytes, String fileName) async {
+    try {
       final List<Directory> candidates = [
         Directory('/storage/emulated/0/Download'),
         Directory('/sdcard/Download'),
@@ -190,17 +205,21 @@ class _HerzMarkupPageState extends State<HerzMarkupPage> {
   }
 
   void _onCopyOriginal() async {
-    final path = await _saveToFile(widget.imageBytes, 'original');
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    final fileName = 'HerzView_original_$ts.png';
+    await _saveToFile(widget.imageBytes, fileName);
+    await _syncClipboard(
+      bytes: widget.imageBytes,
+      name: fileName,
+      copyToRemote: true,
+    );
+
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          path != null
-              ? '✓ Screenshot asli tersimpan di Download!'
-              : 'Screenshot asli siap digunakan.',
-        ),
-        backgroundColor: const Color(0xFF2563EB),
-        duration: const Duration(seconds: 2),
+      const SnackBar(
+        content: Text('✓ Screenshot asli disalin ke Clipboard (HP & PC)! Siap di-paste.'),
+        backgroundColor: Color(0xFF2563EB),
+        duration: Duration(seconds: 2),
       ),
     );
     Navigator.pop(context);
@@ -208,9 +227,21 @@ class _HerzMarkupPageState extends State<HerzMarkupPage> {
 
   void _onSaveOrCopyAnnotated(Size canvasSize, {bool pasteToPc = false}) async {
     final annotatedBytes = await _renderAnnotatedImage(canvasSize);
-    final path = await _saveToFile(annotatedBytes, 'markup');
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    final fileName = 'HerzView_markup_$ts.png';
+    await _saveToFile(annotatedBytes, fileName);
+
+    // Sync image to Android system clipboard AND remote PC clipboard
+    await _syncClipboard(
+      bytes: annotatedBytes,
+      name: fileName,
+      copyToRemote: true,
+    );
 
     if (pasteToPc) {
+      // Allow remote Windows PC ~350ms to receive network packet & set clipboard
+      await Future.delayed(const Duration(milliseconds: 350));
+
       // Trigger Ctrl+V on remote PC
       bind.sessionInputKey(
         sessionId: widget.sessionId,
@@ -229,10 +260,8 @@ class _HerzMarkupPageState extends State<HerzMarkupPage> {
       SnackBar(
         content: Text(
           pasteToPc
-              ? '✓ Coretan tersimpan & dikirim (Ctrl+V) ke PC!'
-              : (path != null
-                  ? '✓ Coretan tersimpan di Download!'
-                  : '✓ Coretan siap digunakan!'),
+              ? '✓ Coretan disalin & di-paste (Ctrl+V) ke PC!'
+              : '✓ Coretan disalin ke Clipboard (HP & PC) & tersimpan di Download!',
         ),
         backgroundColor: const Color(0xFF22C55E),
         duration: const Duration(seconds: 2),

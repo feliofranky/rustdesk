@@ -46,6 +46,30 @@ class RdClipboardManager(private val clipboardManager: ClipboardManager) {
     val isCaptureStarted: Boolean
         get() = _isCaptureStarted
 
+    fun sendImageToRemote(bytes: ByteArray) {
+        try {
+            val clips = MultiClipboards.newBuilder()
+            val content = com.google.protobuf.ByteString.copyFrom(bytes)
+            clips.addClipboards(
+                Clipboard.newBuilder()
+                    .setFormat(ClipboardFormat.ImagePng)
+                    .setContent(content)
+                    .build()
+            )
+            val clipsBytes = clips.build().toByteArray()
+            val isClientFlag = 1.toByte() // 1 = client
+            val clipsBuf = ByteBuffer.allocateDirect(clipsBytes.size + 1).apply {
+                put(isClientFlag)
+                put(clipsBytes)
+            }
+            clipsBuf.flip()
+            Log.d(logTag, "sendImageToRemote: sent ImagePng (${bytes.size} bytes) to remote PC clipboard")
+            FFI.onClipboardUpdate(clipsBuf)
+        } catch (e: Exception) {
+            Log.e(logTag, "sendImageToRemote failed: ${e.message}", e)
+        }
+    }
+
     fun checkPrimaryClip(isClient: Boolean) {
         val clipData = clipboardManager.primaryClip
         if (clipData != null && clipData.itemCount > 0) {
