@@ -1008,8 +1008,6 @@ class _HerzMonitorSideDockState extends State<HerzMonitorSideDock> {
   }) {
     const activeBg = Color(0xFF2563EB); // Herz Blue
     const standbyBg = Color(0xFF1E293B); // Slate 800
-    const activeBorder = Color(0xFF60A5FA); // Light Blue
-    const standbyBorder = Color(0xFF334155); // Slate 700
     const activeText = Colors.white;
     const standbyText = Color(0xFF94A3B8); // Slate 400
 
@@ -1031,22 +1029,18 @@ class _HerzMonitorSideDockState extends State<HerzMonitorSideDock> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Screen Frame
+                // Screen Frame (Clean Borderless)
                 Container(
                   width: _btnWidth,
                   height: 28,
                   decoration: BoxDecoration(
                     color: isActive ? activeBg : standbyBg,
-                    borderRadius: BorderRadius.circular(5),
-                    border: Border.all(
-                      color: isActive ? activeBorder : standbyBorder,
-                      width: isActive ? 1.5 : 1.0,
-                    ),
+                    borderRadius: BorderRadius.circular(6),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.35),
-                        blurRadius: 3,
-                        offset: const Offset(0, 1),
+                        color: Colors.black.withOpacity(0.3),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1.5),
                       ),
                     ],
                   ),
@@ -1055,10 +1049,9 @@ class _HerzMonitorSideDockState extends State<HerzMonitorSideDock> {
                     label,
                     style: TextStyle(
                       color: isActive ? activeText : standbyText,
-                      fontSize: label == 'ALL' ? 10 : 12,
+                      fontSize: 12,
                       fontWeight: FontWeight.bold,
                       decoration: TextDecoration.none,
-                      letterSpacing: label == 'ALL' ? 0.5 : 0,
                     ),
                   ),
                 ),
@@ -1066,14 +1059,14 @@ class _HerzMonitorSideDockState extends State<HerzMonitorSideDock> {
                 Container(
                   width: 3,
                   height: 3,
-                  color: isActive ? activeBorder : const Color(0xFF475569),
+                  color: isActive ? activeBg : const Color(0xFF334155),
                 ),
                 // Stand Foot / Base
                 Container(
                   width: 14,
                   height: 2,
                   decoration: BoxDecoration(
-                    color: isActive ? activeBorder : const Color(0xFF475569),
+                    color: isActive ? activeBg : const Color(0xFF334155),
                     borderRadius: BorderRadius.circular(1),
                   ),
                 ),
@@ -1121,7 +1114,7 @@ class _HerzMonitorSideDockState extends State<HerzMonitorSideDock> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // 1. The Dock Panel (Holds monitor buttons [1], [2]... [ALL])
+            // 1. The Dock Panel (Holds monitor buttons [1], [2]... borderless)
             Container(
               width: _panelWidth,
               padding: const EdgeInsets.symmetric(vertical: 6),
@@ -1131,14 +1124,10 @@ class _HerzMonitorSideDockState extends State<HerzMonitorSideDock> {
                   topRight: Radius.circular(10),
                   bottomRight: Radius.circular(10),
                 ),
-                border: Border.all(
-                  color: const Color(0xFF334155),
-                  width: 1.0,
-                ),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.4),
-                    blurRadius: 6,
+                    blurRadius: 8,
                     offset: const Offset(1, 2),
                   ),
                 ],
@@ -1154,26 +1143,10 @@ class _HerzMonitorSideDockState extends State<HerzMonitorSideDock> {
                       isActive: curDisplay == i,
                       pi: pi,
                     ),
-                  // Divider
-                  Container(
-                    margin: const EdgeInsets.symmetric(
-                      vertical: 4,
-                      horizontal: 8,
-                    ),
-                    height: 1,
-                    color: const Color(0xFF334155),
-                  ),
-                  // ALL Displays option
-                  _buildMonitorIconBox(
-                    targetDisplay: kAllDisplayValue,
-                    label: 'ALL',
-                    isActive: curDisplay == kAllDisplayValue,
-                    pi: pi,
-                  ),
                 ],
               ),
             ),
-            // 2. The Hide / Show Tab (attached to the right side of the panel)
+            // 2. The Hide / Show Tab (attached to the right side of the panel, borderless)
             Material(
               color: Colors.transparent,
               child: InkWell(
@@ -1198,12 +1171,6 @@ class _HerzMonitorSideDockState extends State<HerzMonitorSideDock> {
                     borderRadius: const BorderRadius.only(
                       topRight: Radius.circular(8),
                       bottomRight: Radius.circular(8),
-                    ),
-                    border: Border.all(
-                      color: _isCollapsed
-                          ? const Color(0xFF60A5FA)
-                          : const Color(0xFF334155),
-                      width: 1.0,
                     ),
                     boxShadow: [
                       BoxShadow(
