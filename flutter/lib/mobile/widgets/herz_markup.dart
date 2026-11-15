@@ -3,8 +3,11 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/models/model.dart';
+import 'package:flutter_hbb/models/platform_model.dart';
+import 'package:path_provider/path_provider.dart';
 
 enum MarkupTool { pen, highlighter, eraser }
 
@@ -138,13 +141,47 @@ class _HerzMarkupPageState extends State<HerzMarkupPage> {
 
   Future<String?> _saveToFile(Uint8List bytes, String suffix) async {
     try {
-      final dir = Directory('/sdcard/Download');
-      if (!await dir.exists()) {
-        await dir.create(recursive: true);
-      }
       final ts = DateTime.now().millisecondsSinceEpoch;
-      final file = File('/sdcard/Download/HerzView_${suffix}_$ts.png');
+      final fileName = 'HerzView_${suffix}_$ts.png';
+
+      final List<Directory> candidates = [
+        Directory('/storage/emulated/0/Download'),
+        Directory('/sdcard/Download'),
+        Directory('/storage/emulated/0/Pictures'),
+      ];
+
+      for (final dir in candidates) {
+        try {
+          if (!await dir.exists()) {
+            await dir.create(recursive: true);
+          }
+          final file = File('${dir.path}/$fileName');
+          await file.writeAsBytes(bytes);
+          debugPrint('Saved markup screenshot to: ${file.path}');
+          return file.path;
+        } catch (err) {
+          debugPrint('Candidate dir ${dir.path} write failed: $err');
+        }
+      }
+
+      // Fallback to app external storage
+      try {
+        final extDir = await getExternalStorageDirectory();
+        if (extDir != null) {
+          final file = File('${extDir.path}/$fileName');
+          await file.writeAsBytes(bytes);
+          debugPrint('Saved markup screenshot to fallback extDir: ${file.path}');
+          return file.path;
+        }
+      } catch (err) {
+        debugPrint('Fallback extDir failed: $err');
+      }
+
+      // Fallback to app documents directory
+      final docDir = await getApplicationDocumentsDirectory();
+      final file = File('${docDir.path}/$fileName');
       await file.writeAsBytes(bytes);
+      debugPrint('Saved markup screenshot to fallback docDir: ${file.path}');
       return file.path;
     } catch (e) {
       debugPrint('Error saving screenshot file: $e');
