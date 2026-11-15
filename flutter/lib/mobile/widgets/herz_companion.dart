@@ -1104,7 +1104,7 @@ class _HerzMonitorSideDockState extends State<HerzMonitorSideDock> {
 
       int curDisplay = pi.currentDisplay;
       try {
-        curDisplay = CurrentDisplayState.find(pi.id).value;
+        curDisplay = CurrentDisplayState.find(widget.gFFI.id).value;
       } catch (_) {
         curDisplay = pi.currentDisplay;
       }
