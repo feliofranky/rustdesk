@@ -18,11 +18,13 @@ import 'package:flutter_hbb/models/platform_model.dart';
 class HerzCompanionToolbar extends StatefulWidget {
   final SessionID sessionId;
   final FFI gFFI;
+  final VoidCallback? onSnip;
 
   const HerzCompanionToolbar({
     Key? key,
     required this.sessionId,
     required this.gFFI,
+    this.onSnip,
   }) : super(key: key);
 
   @override
@@ -394,16 +396,20 @@ class _HerzCompanionToolbarState extends State<HerzCompanionToolbar> {
   }
 
   void _onSnip() {
-    bind.sessionInputKey(
-      sessionId: widget.sessionId,
-      name: 'S',
-      down: false,
-      press: true,
-      ctrl: false,
-      alt: false,
-      shift: true,
-      command: true,
-    );
+    if (widget.onSnip != null) {
+      widget.onSnip!();
+    } else {
+      bind.sessionInputKey(
+        sessionId: widget.sessionId,
+        name: 'S',
+        down: false,
+        press: true,
+        ctrl: false,
+        alt: false,
+        shift: true,
+        command: true,
+      );
+    }
   }
 
   void _onRightClick() {

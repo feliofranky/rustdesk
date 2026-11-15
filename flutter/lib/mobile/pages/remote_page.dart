@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_hbb/common/shared_state.dart';
 import 'package:flutter_hbb/common/widgets/toolbar.dart';
@@ -9,6 +11,7 @@ import 'package:flutter_hbb/mobile/widgets/floating_mouse.dart';
 import 'package:flutter_hbb/mobile/widgets/floating_mouse_widgets.dart';
 import 'package:flutter_hbb/mobile/widgets/gesture_help.dart';
 import 'package:flutter_hbb/mobile/widgets/herz_companion.dart';
+import 'package:flutter_hbb/mobile/widgets/herz_markup.dart';
 import 'package:flutter_hbb/models/chat_model.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:flutter_svg/svg.dart';
@@ -113,6 +116,36 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
 
   final TextEditingController _textController =
       TextEditingController(text: initText);
+
+  final GlobalKey _canvasKey = GlobalKey();
+
+  void _openMarkupEditor() async {
+    try {
+      final boundary =
+          _canvasKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) return;
+      final image = await boundary.toImage(pixelRatio: 1.5);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) return;
+      final pngBytes = byteData.buffer.asUint8List();
+
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        PageRouteBuilder(
+          opaque: false,
+          pageBuilder: (ctx, anim1, anim2) => HerzMarkupPage(
+            imageBytes: pngBytes,
+            rawUiImage: image,
+            sessionId: sessionId,
+            gFFI: gFFI,
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Failed to open markup editor: $e');
+    }
+  }
 
   _RemotePageState(String id) {
     initSharedStates(id);
@@ -489,7 +522,11 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
           ? Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                HerzCompanionToolbar(sessionId: sessionId, gFFI: gFFI),
+                HerzCompanionToolbar(
+                  sessionId: sessionId,
+                  gFFI: gFFI,
+                  onSnip: _openMarkupEditor,
+                ),
                 getBottomAppBar(),
               ],
             )
@@ -575,14 +612,17 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
                                 fit: StackFit.expand,
                                 children: [
                                   Positioned.fill(
-                                    child: Container(
-                                      color: MyTheme.canvasColor,
-                                      child: inputModel.isPhysicalMouse.value
-                                          ? getBodyForMobile()
-                                          : RawTouchGestureDetectorRegion(
-                                              child: getBodyForMobile(),
-                                              ffi: gFFI,
-                                            ),
+                                    child: RepaintBoundary(
+                                      key: _canvasKey,
+                                      child: Container(
+                                        color: MyTheme.canvasColor,
+                                        child: inputModel.isPhysicalMouse.value
+                                            ? getBodyForMobile()
+                                            : RawTouchGestureDetectorRegion(
+                                                child: getBodyForMobile(),
+                                                ffi: gFFI,
+                                              ),
+                                      ),
                                     ),
                                   ),
                                   HerzScrollSlider(
