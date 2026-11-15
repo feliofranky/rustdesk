@@ -2,10 +2,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_hbb/common.dart';
+import 'package:flutter_hbb/common/shared_state.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/models/input_model.dart';
 import 'package:flutter_hbb/models/model.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
+import 'package:get/get.dart';
 
 /// HerzCompanionToolbar:
 /// Hybrid orientation-adaptive companion toolbar.
@@ -967,3 +969,263 @@ class _HerzScrollSliderState extends State<HerzScrollSlider>
     );
   }
 }
+
+/// HerzMonitorSideDock:
+/// Quick 1-tap dual/multi-monitor switching dock pinned to the left screen edge.
+/// - Symmetrical to HerzScrollSlider on the right.
+/// - Dynamic: automatically generates monitor buttons [1], [2], [3]... + [ALL] based on connected displays.
+/// - Auto-Hide: completely hidden (SizedBox.shrink) when remote PC has only 1 monitor.
+/// - Collapsible: tap '<' to slide offscreen into a sleek 20px '>' tab at screen edge.
+/// - Smooth Material InkWell touch feedback with subtle #3B82F6 ripple on every clickable element.
+/// - Theme consistent: Slate-900 (#0F172A), Slate-800 (#1E293B), Herz Blue (#2563EB).
+class HerzMonitorSideDock extends StatefulWidget {
+  final SessionID sessionId;
+  final FFI gFFI;
+
+  const HerzMonitorSideDock({
+    Key? key,
+    required this.sessionId,
+    required this.gFFI,
+  }) : super(key: key);
+
+  @override
+  State<HerzMonitorSideDock> createState() => _HerzMonitorSideDockState();
+}
+
+class _HerzMonitorSideDockState extends State<HerzMonitorSideDock> {
+  bool _isCollapsed = false;
+
+  static const double _btnWidth = 44.0;
+  static const double _btnHeight = 38.0;
+  static const double _panelWidth = 56.0;
+  static const double _tabWidth = 20.0;
+
+  Widget _buildMonitorIconBox({
+    required int targetDisplay,
+    required String label,
+    required bool isActive,
+    required PeerInfo pi,
+  }) {
+    const activeBg = Color(0xFF2563EB); // Herz Blue
+    const standbyBg = Color(0xFF1E293B); // Slate 800
+    const activeBorder = Color(0xFF60A5FA); // Light Blue
+    const standbyBorder = Color(0xFF334155); // Slate 700
+    const activeText = Colors.white;
+    const standbyText = Color(0xFF94A3B8); // Slate 400
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3.0),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(6),
+          splashColor: const Color(0x333B82F6),
+          highlightColor: const Color(0x223B82F6),
+          onTap: () {
+            openMonitorInTheSameTab(targetDisplay, widget.gFFI, pi);
+          },
+          child: Container(
+            width: _btnWidth,
+            height: _btnHeight,
+            alignment: Alignment.center,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Screen Frame
+                Container(
+                  width: _btnWidth,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: isActive ? activeBg : standbyBg,
+                    borderRadius: BorderRadius.circular(5),
+                    border: Border.all(
+                      color: isActive ? activeBorder : standbyBorder,
+                      width: isActive ? 1.5 : 1.0,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.35),
+                        blurRadius: 3,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: isActive ? activeText : standbyText,
+                      fontSize: label == 'ALL' ? 10 : 12,
+                      fontWeight: FontWeight.bold,
+                      decoration: TextDecoration.none,
+                      letterSpacing: label == 'ALL' ? 0.5 : 0,
+                    ),
+                  ),
+                ),
+                // Stand Neck
+                Container(
+                  width: 3,
+                  height: 3,
+                  color: isActive ? activeBorder : const Color(0xFF475569),
+                ),
+                // Stand Foot / Base
+                Container(
+                  width: 14,
+                  height: 2,
+                  decoration: BoxDecoration(
+                    color: isActive ? activeBorder : const Color(0xFF475569),
+                    borderRadius: BorderRadius.circular(1),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final pi = widget.gFFI.ffiModel.pi;
+
+      // Ensure GetX reactive tracking on displaysCount
+      final _ = pi.displaysCount.value;
+
+      // Smart Auto-Hide: Zero clutter if target PC only has 1 monitor
+      if (pi.displays.length <= 1) {
+        return const Positioned(
+          left: -300,
+          top: 0,
+          child: SizedBox.shrink(),
+        );
+      }
+
+      int curDisplay = pi.currentDisplay;
+      try {
+        curDisplay = CurrentDisplayState.find(pi.id).value;
+      } catch (_) {
+        curDisplay = pi.currentDisplay;
+      }
+
+      final isPortrait =
+          MediaQuery.of(context).orientation == Orientation.portrait;
+
+      return AnimatedPositioned(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeInOutCubic,
+        left: _isCollapsed ? -_panelWidth : 0,
+        top: isPortrait ? MediaQuery.of(context).size.height * 0.28 : 20,
+        width: _panelWidth + _tabWidth,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // 1. The Dock Panel (Holds monitor buttons [1], [2]... [ALL])
+            Container(
+              width: _panelWidth,
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xF00F172A), // Slate-900 94% glass
+                borderRadius: const BorderRadius.only(
+                  topRight: Radius.circular(10),
+                  bottomRight: Radius.circular(10),
+                ),
+                border: Border.all(
+                  color: const Color(0xFF334155),
+                  width: 1.0,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.4),
+                    blurRadius: 6,
+                    offset: const Offset(1, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Dynamic monitors (1, 2, 3...)
+                  for (int i = 0; i < pi.displays.length; i++)
+                    _buildMonitorIconBox(
+                      targetDisplay: i,
+                      label: '${i + 1}',
+                      isActive: curDisplay == i,
+                      pi: pi,
+                    ),
+                  // Divider
+                  Container(
+                    margin: const EdgeInsets.symmetric(
+                      vertical: 4,
+                      horizontal: 8,
+                    ),
+                    height: 1,
+                    color: const Color(0xFF334155),
+                  ),
+                  // ALL Displays option
+                  _buildMonitorIconBox(
+                    targetDisplay: kAllDisplayValue,
+                    label: 'ALL',
+                    isActive: curDisplay == kAllDisplayValue,
+                    pi: pi,
+                  ),
+                ],
+              ),
+            ),
+            // 2. The Hide / Show Tab (attached to the right side of the panel)
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: const BorderRadius.only(
+                  topRight: Radius.circular(8),
+                  bottomRight: Radius.circular(8),
+                ),
+                splashColor: const Color(0x333B82F6),
+                highlightColor: const Color(0x223B82F6),
+                onTap: () {
+                  setState(() {
+                    _isCollapsed = !_isCollapsed;
+                  });
+                },
+                child: Container(
+                  width: _tabWidth,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: _isCollapsed
+                        ? const Color(0xFF2563EB)
+                        : const Color(0xFF1E293B),
+                    borderRadius: const BorderRadius.only(
+                      topRight: Radius.circular(8),
+                      bottomRight: Radius.circular(8),
+                    ),
+                    border: Border.all(
+                      color: _isCollapsed
+                          ? const Color(0xFF60A5FA)
+                          : const Color(0xFF334155),
+                      width: 1.0,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.35),
+                        blurRadius: 4,
+                        offset: const Offset(1, 1),
+                      ),
+                    ],
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(
+                    _isCollapsed ? Icons.chevron_right : Icons.chevron_left,
+                    size: 16,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+}
+

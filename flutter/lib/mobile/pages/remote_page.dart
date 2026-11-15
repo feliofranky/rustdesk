@@ -628,6 +628,10 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
                                     sessionId: sessionId,
                                     gFFI: gFFI,
                                   ),
+                                  HerzMonitorSideDock(
+                                    sessionId: sessionId,
+                                    gFFI: gFFI,
+                                  ),
                                 ],
                               );
                             }),
