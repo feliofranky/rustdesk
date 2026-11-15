@@ -525,7 +525,6 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
                 HerzCompanionToolbar(
                   sessionId: sessionId,
                   gFFI: gFFI,
-                  onSnip: _openMarkupEditor,
                 ),
                 getBottomAppBar(),
               ],

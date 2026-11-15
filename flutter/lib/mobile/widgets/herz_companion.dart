@@ -196,19 +196,21 @@ class _HerzCompanionToolbarState extends State<HerzCompanionToolbar> {
                   children: [
                     Row(
                       children: [
-                        InkWell(
-                          onTap: () => startVoice(setModalState),
-                          borderRadius: BorderRadius.circular(20),
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF2563EB).withOpacity(0.2),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.mic_rounded,
-                              color: Color(0xFF2563EB),
-                              size: 22,
+                        Material(
+                          color: const Color(0xFF2563EB).withOpacity(0.2),
+                          shape: const CircleBorder(),
+                          clipBehavior: Clip.antiAlias,
+                          child: InkWell(
+                            onTap: () => startVoice(setModalState),
+                            splashColor: const Color(0xFF3B82F6).withOpacity(0.35),
+                            highlightColor: const Color(0xFF3B82F6).withOpacity(0.20),
+                            child: const Padding(
+                              padding: EdgeInsets.all(7),
+                              child: Icon(
+                                Icons.mic_rounded,
+                                color: Color(0xFF60A5FA),
+                                size: 20,
+                              ),
                             ),
                           ),
                         ),
@@ -222,71 +224,91 @@ class _HerzCompanionToolbarState extends State<HerzCompanionToolbar> {
                           ),
                         ),
                         const Spacer(),
-                        InkWell(
-                          onTap: hideKeyboard,
-                          borderRadius: BorderRadius.circular(6),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            margin: const EdgeInsets.only(right: 8),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1E293B),
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: const Color(0xFF334155), width: 1),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: const [
-                                Icon(Icons.keyboard_hide_rounded, size: 14, color: Color(0xFF93C5FD)),
-                                SizedBox(width: 4),
-                                Text(
-                                  'Hide',
-                                  style: TextStyle(
-                                    color: Color(0xFF93C5FD),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: Material(
+                            color: const Color(0xFF1E293B),
+                            borderRadius: BorderRadius.circular(6),
+                            clipBehavior: Clip.antiAlias,
+                            child: InkWell(
+                              onTap: hideKeyboard,
+                              splashColor: const Color(0xFF3B82F6).withOpacity(0.30),
+                              highlightColor: const Color(0xFF3B82F6).withOpacity(0.18),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: const Color(0xFF334155), width: 1),
                                 ),
-                              ],
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: const [
+                                    Icon(Icons.keyboard_hide_rounded, size: 14, color: Color(0xFF93C5FD)),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'Hide',
+                                      style: TextStyle(
+                                        color: Color(0xFF93C5FD),
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.close_rounded, color: Colors.white60, size: 22),
-                          onPressed: () {
-                            hideKeyboard();
-                            Navigator.pop(ctx);
-                          },
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
+                        Material(
+                          color: Colors.transparent,
+                          shape: const CircleBorder(),
+                          clipBehavior: Clip.antiAlias,
+                          child: InkWell(
+                            onTap: () {
+                              hideKeyboard();
+                              Navigator.pop(ctx);
+                            },
+                            splashColor: Colors.white24,
+                            highlightColor: Colors.white10,
+                            child: const Padding(
+                              padding: EdgeInsets.all(6),
+                              child: Icon(Icons.close_rounded, color: Colors.white70, size: 20),
+                            ),
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
                     // Dedicated prominent voice button
-                    InkWell(
-                      onTap: () => startVoice(setModalState),
+                    Material(
+                      color: const Color(0xFF1E293B),
                       borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1E293B),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFF2563EB), width: 1.2),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Icon(Icons.mic_rounded, color: Color(0xFF60A5FA), size: 20),
-                            SizedBox(width: 8),
-                            Text(
-                              'Tap untuk Bicara (Dikte Suara)',
-                              style: TextStyle(
-                                color: Color(0xFF93C5FD),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        onTap: () => startVoice(setModalState),
+                        splashColor: const Color(0xFF2563EB).withOpacity(0.35),
+                        highlightColor: const Color(0xFF2563EB).withOpacity(0.20),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFF2563EB), width: 1.2),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: const [
+                              Icon(Icons.mic_rounded, color: Color(0xFF60A5FA), size: 20),
+                              SizedBox(width: 8),
+                              Text(
+                                'Tap untuk Bicara (Dikte Suara)',
+                                style: TextStyle(
+                                  color: Color(0xFF93C5FD),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -298,14 +320,26 @@ class _HerzCompanionToolbarState extends State<HerzCompanionToolbar> {
                       maxLines: null,
                       decoration: InputDecoration(
                         hintText: 'Ketik teks atau gunakan tombol suara di atas...',
-                        hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
+                        hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
                         filled: true,
                         fillColor: const Color(0xFF1E293B),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        suffixIcon: IconButton(
-                          icon: const Icon(Icons.mic_rounded, color: Color(0xFF2563EB)),
-                          onPressed: () => startVoice(setModalState),
-                          tooltip: 'Bicara Sekarang',
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        suffixIcon: Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: Material(
+                            color: Colors.transparent,
+                            shape: const CircleBorder(),
+                            clipBehavior: Clip.antiAlias,
+                            child: InkWell(
+                              onTap: () => startVoice(setModalState),
+                              splashColor: const Color(0xFF2563EB).withOpacity(0.35),
+                              highlightColor: const Color(0xFF2563EB).withOpacity(0.20),
+                              child: const Padding(
+                                padding: EdgeInsets.all(8),
+                                child: Icon(Icons.mic_rounded, color: Color(0xFF3B82F6), size: 22),
+                              ),
+                            ),
+                          ),
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -317,7 +351,7 @@ class _HerzCompanionToolbarState extends State<HerzCompanionToolbar> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Color(0xFF2563EB)),
+                          borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
                         ),
                       ),
                       onSubmitted: (value) {
@@ -347,8 +381,15 @@ class _HerzCompanionToolbarState extends State<HerzCompanionToolbar> {
                             style: OutlinedButton.styleFrom(
                               side: const BorderSide(color: Color(0xFF475569), width: 1),
                               backgroundColor: const Color(0xFF1E293B),
+                              foregroundColor: const Color(0xFFE2E8F0),
                               padding: const EdgeInsets.symmetric(vertical: 11),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ).copyWith(
+                              overlayColor: MaterialStateProperty.resolveWith(
+                                (states) => states.contains(MaterialState.pressed)
+                                    ? const Color(0xFF334155).withOpacity(0.5)
+                                    : null,
+                              ),
                             ),
                             onPressed: hideKeyboard,
                           ),
@@ -368,6 +409,12 @@ class _HerzCompanionToolbarState extends State<HerzCompanionToolbar> {
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 11),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ).copyWith(
+                              overlayColor: MaterialStateProperty.resolveWith(
+                                (states) => states.contains(MaterialState.pressed)
+                                    ? const Color(0xFF1D4ED8)
+                                    : null,
+                              ),
                             ),
                             onPressed: () {
                               final text = textController.text;
@@ -395,21 +442,46 @@ class _HerzCompanionToolbarState extends State<HerzCompanionToolbar> {
     });
   }
 
-  void _onSnip() {
+  void _onSnip() async {
     if (widget.onSnip != null) {
       widget.onSnip!();
-    } else {
-      bind.sessionInputKey(
-        sessionId: widget.sessionId,
-        name: 'S',
-        down: false,
-        press: true,
-        ctrl: false,
-        alt: false,
-        shift: true,
-        command: true,
-      );
+      return;
     }
+    // Launch classic Windows Snipping Tool (SnippingTool.exe)
+    // 1. Send Win + R
+    bind.sessionInputKey(
+      sessionId: widget.sessionId,
+      name: 'r',
+      down: false,
+      press: true,
+      ctrl: false,
+      alt: false,
+      shift: false,
+      command: true,
+    );
+    await Future.delayed(const Duration(milliseconds: 300));
+    // 2. Type "snippingtool"
+    bind.sessionInputString(sessionId: widget.sessionId, value: 'snippingtool');
+    await Future.delayed(const Duration(milliseconds: 120));
+    // 3. Press Enter
+    bind.sessionInputKey(
+      sessionId: widget.sessionId,
+      name: 'Return',
+      down: false,
+      press: true,
+      ctrl: false,
+      alt: false,
+      shift: false,
+      command: false,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('✓ Membuka Snipping Tool di Windows...'),
+        backgroundColor: Color(0xFF2563EB),
+        duration: Duration(seconds: 1),
+      ),
+    );
   }
 
   void _onRightClick() {
@@ -435,65 +507,71 @@ class _HerzCompanionToolbarState extends State<HerzCompanionToolbar> {
     bool isActive = false,
     double size = 20,
   }) {
-    return InkWell(
-      onTap: onTap,
+    return Material(
+      color: isActive ? const Color(0xFF2563EB) : Colors.transparent,
       borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-        decoration: BoxDecoration(
-          color: isActive ? const Color(0xFF2563EB) : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Icon(
-          icon,
-          size: size,
-          color: Colors.white,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        splashColor: const Color(0xFF3B82F6).withOpacity(0.35),
+        highlightColor: const Color(0xFF3B82F6).withOpacity(0.20),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          child: Icon(
+            icon,
+            size: size,
+            color: Colors.white,
+          ),
         ),
       ),
     );
   }
 
   Widget _buildDpadTrigger() {
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _showDpad = !_showDpad;
-        });
-      },
+    return Material(
+      color: _showDpad ? const Color(0xFF2563EB) : Colors.transparent,
       borderRadius: BorderRadius.circular(6),
-      child: Container(
-        height: 32,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: _showDpad ? const Color(0xFF2563EB) : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: const Icon(
-          Icons.control_camera_rounded,
-          size: 20,
-          color: Colors.white,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _showDpad = !_showDpad;
+          });
+        },
+        splashColor: const Color(0xFF3B82F6).withOpacity(0.35),
+        highlightColor: const Color(0xFF3B82F6).withOpacity(0.20),
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          child: Icon(
+            Icons.control_camera_rounded,
+            size: 20,
+            color: Colors.white,
+          ),
         ),
       ),
     );
   }
 
   Widget _buildDpadItem(IconData icon, String keyName) {
-    return InkWell(
-      onTap: () => _sendKey(keyName),
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        width: 42,
-        height: 34,
-        decoration: BoxDecoration(
-          color: const Color(0xFF1E293B),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        margin: const EdgeInsets.symmetric(horizontal: 3),
-        alignment: Alignment.center,
-        child: Icon(
-          icon,
-          size: 22,
-          color: Colors.white,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 3),
+      child: Material(
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(6),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => _sendKey(keyName),
+          splashColor: const Color(0xFF3B82F6).withOpacity(0.35),
+          highlightColor: const Color(0xFF3B82F6).withOpacity(0.20),
+          child: SizedBox(
+            width: 42,
+            height: 34,
+            child: Icon(
+              icon,
+              size: 22,
+              color: Colors.white,
+            ),
+          ),
         ),
       ),
     );
@@ -522,16 +600,22 @@ class _HerzCompanionToolbarState extends State<HerzCompanionToolbar> {
           ),
           _buildDpadItem(Icons.keyboard_return_rounded, 'VK_RETURN'),
           const SizedBox(width: 4),
-          InkWell(
-            onTap: () {
-              setState(() {
-                _showDpad = false;
-              });
-            },
+          Material(
+            color: Colors.transparent,
             borderRadius: BorderRadius.circular(6),
-            child: const Padding(
-              padding: EdgeInsets.all(6),
-              child: Icon(Icons.close_rounded, size: 20, color: Colors.white60),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () {
+                setState(() {
+                  _showDpad = false;
+                });
+              },
+              splashColor: Colors.white24,
+              highlightColor: Colors.white10,
+              child: const Padding(
+                padding: EdgeInsets.all(6),
+                child: Icon(Icons.close_rounded, size: 20, color: Colors.white60),
+              ),
             ),
           ),
         ],
